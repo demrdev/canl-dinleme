@@ -10,6 +10,7 @@
     <title>Ultra Advanced Sound Detection & AI Analysis System</title>
     <link rel="manifest" href="manifest.json">
     <script src="advanced-audio-processor.js"></script>
+    <script src="heartbeat-demo.js"></script>
     <style>
         * {
             margin: 0;
@@ -970,7 +971,7 @@
         </div>
         
         <!-- Real-time Indicators Enhanced -->
-        <div class="indicators-grid" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="indicators-grid" style="grid-template-columns: repeat(5, 1fr);">
             <div class="indicator-card">
                 <div class="indicator-value" id="clarityValue">0%</div>
                 <div class="indicator-label">Netlik</div>
@@ -986,6 +987,10 @@
             <div class="indicator-card">
                 <div class="indicator-value" id="gainValue">1x</div>
                 <div class="indicator-label">Kazanç</div>
+            </div>
+            <div class="indicator-card">
+                <div class="indicator-value" id="noiseValue">0dB</div>
+                <div class="indicator-label">Gürültü</div>
             </div>
         </div>
         
@@ -1096,6 +1101,25 @@
             <canvas id="visualizer"></canvas>
         </div>
         
+        <!-- Advanced Visualizations -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <!-- Spectrogram -->
+            <div style="background: #1e293b; border-radius: 12px; padding: 15px;">
+                <div style="color: white; font-size: 13px; font-weight: 600; margin-bottom: 10px; text-transform: uppercase;">
+                    📊 Spektrogram (Zaman-Frekans)
+                </div>
+                <canvas id="spectrogram" style="width: 100%; height: 150px; border-radius: 8px; background: #0f172a;"></canvas>
+            </div>
+            
+            <!-- 3D Sound Map -->
+            <div style="background: #1e293b; border-radius: 12px; padding: 15px;">
+                <div style="color: white; font-size: 13px; font-weight: 600; margin-bottom: 10px; text-transform: uppercase;">
+                    🧭 3D Ses Haritası
+                </div>
+                <canvas id="soundMap3D" style="width: 100%; height: 150px; border-radius: 8px; background: #0f172a;"></canvas>
+            </div>
+        </div>
+        
         <!-- Help Section -->
         <div class="help-section">
             <div class="help-title">📚 Kullanım Kılavuzu</div>
@@ -1160,11 +1184,35 @@
         
         // Initialize Advanced Processors
         async function initializeAdvancedProcessors() {
-            advancedProcessor = new AdvancedAudioProcessor();
-            await advancedProcessor.initialize(96000);
-            soundClassifier = advancedProcessor.soundClassifier;
-            distanceEstimator = advancedProcessor.distanceEstimator;
-            directionDetector = advancedProcessor.directionDetector;
+            try {
+                if (typeof AdvancedAudioProcessor !== 'undefined') {
+                    advancedProcessor = new AdvancedAudioProcessor();
+                    await advancedProcessor.initialize(96000);
+                    soundClassifier = advancedProcessor.soundClassifier;
+                    distanceEstimator = advancedProcessor.distanceEstimator;
+                    directionDetector = advancedProcessor.directionDetector;
+                } else {
+                    console.warn('AdvancedAudioProcessor not loaded, using fallback');
+                    // Fallback implementation
+                    advancedProcessor = {
+                        currentMode: 'medium',
+                        soundClassifier: {
+                            classify: () => ({ category: 'unknown', confidence: 0, allConfidences: {} })
+                        },
+                        distanceEstimator: {
+                            estimateDistance: () => ({ distance: 0, confidence: 0 })
+                        },
+                        directionDetector: {
+                            detectDirection: () => ({ angle: 0, direction: 'Center', confidence: 0 })
+                        }
+                    };
+                    soundClassifier = advancedProcessor.soundClassifier;
+                    distanceEstimator = advancedProcessor.distanceEstimator;
+                    directionDetector = advancedProcessor.directionDetector;
+                }
+            } catch (error) {
+                console.error('Error initializing advanced processors:', error);
+            }
         }
         
         // Detection Modes Configuration
@@ -1277,7 +1325,16 @@
             
             // Initialize heartbeat demo
             if (!heartbeatDemo) {
-                heartbeatDemo = new HeartbeatDetectionDemo();
+                if (typeof HeartbeatDetectionDemo !== 'undefined') {
+                    heartbeatDemo = new HeartbeatDetectionDemo();
+                } else {
+                    console.warn('HeartbeatDetectionDemo not loaded');
+                    heartbeatDemo = {
+                        detectRhythmicPatterns: () => ({ bpm: 0, confidence: 0, type: { type: 'N/A' } }),
+                        envelopeDetection: (data) => data,
+                        generateHeartbeatVisualization: () => {}
+                    };
+                }
             }
             
             // Start heartbeat analysis if listening
@@ -1578,12 +1635,14 @@
                 btn.style.color = '#374151';
             });
             
-            const activeBtn = document.querySelector(`[data-mode="${mode}"]`);
+            const activeBtn = document.querySelector(`.detection-mode-btn[data-mode="${mode}"]`);
             if (activeBtn) {
                 activeBtn.classList.add('active');
                 const modeConfig = detectionModes[mode];
-                activeBtn.style.background = modeConfig.color;
-                activeBtn.style.color = 'white';
+                if (modeConfig) {
+                    activeBtn.style.background = modeConfig.color;
+                    activeBtn.style.color = 'white';
+                }
             }
             
             // Apply detection mode settings
@@ -1591,7 +1650,9 @@
                 applyDetectionMode();
             }
             
-            updateStatus(`🎯 Algılama modu: ${detectionModes[mode].name}`, 'warning');
+            if (detectionModes[mode]) {
+                updateStatus(`🎯 Algılama modu: ${detectionModes[mode].name}`, 'warning');
+            }
         }
         
         // Apply Detection Mode Settings
@@ -2081,6 +2142,10 @@
             setupCanvas();
             window.addEventListener('resize', setupCanvas);
             
+            // Initialize advanced visualizations
+            initializeSpectrogram();
+            initialize3DSoundMap();
+            
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
             
@@ -2135,9 +2200,210 @@
                 const maxFreq = (audioContext.sampleRate / 2) * (bufferLength / analyser.fftSize);
                 document.getElementById('frequencyDisplay').textContent = 
                     `20Hz - ${(maxFreq / 1000).toFixed(1)}kHz`;
+                
+                // Update advanced visualizations
+                updateSpectrogram(dataArray);
+                update3DSoundMap(dataArray);
             }
             
             draw();
+        }
+        
+        // Initialize Spectrogram
+        function initializeSpectrogram() {
+            const canvas = document.getElementById('spectrogram');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            
+            // Clear with gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#0f172a');
+            gradient.addColorStop(1, '#1e293b');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Initialize data array
+            spectrogramData = [];
+        }
+        
+        // Update Spectrogram
+        function updateSpectrogram(frequencyData) {
+            const canvas = document.getElementById('spectrogram');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Add new data
+            spectrogramData.push([...frequencyData]);
+            
+            // Keep last 100 frames
+            if (spectrogramData.length > 100) {
+                spectrogramData.shift();
+            }
+            
+            // Clear canvas
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw spectrogram
+            const columnWidth = width / spectrogramData.length;
+            
+            spectrogramData.forEach((data, timeIndex) => {
+                const x = timeIndex * columnWidth;
+                const binHeight = height / data.length;
+                
+                data.forEach((value, freqIndex) => {
+                    const y = height - (freqIndex * binHeight) - binHeight;
+                    const intensity = value / 255;
+                    
+                    // Color mapping
+                    const hue = 240 - (intensity * 240); // Blue to red
+                    const lightness = 20 + (intensity * 60);
+                    
+                    ctx.fillStyle = `hsl(${hue}, 100%, ${lightness}%)`;
+                    ctx.fillRect(x, y, columnWidth, binHeight);
+                });
+            });
+            
+            // Draw grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 0.5;
+            
+            // Frequency lines
+            for (let i = 0; i <= 4; i++) {
+                const y = (i / 4) * height;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+        }
+        
+        // Initialize 3D Sound Map
+        function initialize3DSoundMap() {
+            const canvas = document.getElementById('soundMap3D');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            
+            // Draw initial compass
+            draw3DCompass(ctx, canvas.width, canvas.height);
+        }
+        
+        // Update 3D Sound Map
+        function update3DSoundMap(frequencyData) {
+            const canvas = document.getElementById('soundMap3D');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // Clear with fade effect
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.1)';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Redraw compass
+            draw3DCompass(ctx, width, height);
+            
+            // Analyze sound direction (simplified)
+            const leftChannel = frequencyData.slice(0, frequencyData.length / 2);
+            const rightChannel = frequencyData.slice(frequencyData.length / 2);
+            
+            const leftEnergy = leftChannel.reduce((a, b) => a + b, 0) / leftChannel.length;
+            const rightEnergy = rightChannel.reduce((a, b) => a + b, 0) / rightChannel.length;
+            
+            const direction = Math.atan2(rightEnergy - leftEnergy, 100) * 180 / Math.PI;
+            const distance = Math.sqrt(leftEnergy + rightEnergy) / 10;
+            
+            // Draw sound source
+            const angle = (direction - 90) * Math.PI / 180;
+            const x = centerX + Math.cos(angle) * distance;
+            const y = centerY + Math.sin(angle) * distance;
+            
+            // Glow effect
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, 20);
+            gradient.addColorStop(0, 'rgba(139, 92, 246, 0.8)');
+            gradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Center dot
+            ctx.fillStyle = '#8b5cf6';
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        // Draw 3D Compass
+        function draw3DCompass(ctx, width, height) {
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = Math.min(width, height) * 0.4;
+            
+            // Outer circle
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner circles
+            for (let r = radius * 0.75; r > 0; r -= radius * 0.25) {
+                ctx.strokeStyle = 'rgba(139, 92, 246, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            // Direction lines
+            ctx.strokeStyle = 'rgba(139, 92, 246, 0.2)';
+            ctx.lineWidth = 1;
+            
+            for (let angle = 0; angle < 360; angle += 45) {
+                const rad = angle * Math.PI / 180;
+                const x1 = centerX + Math.cos(rad) * radius * 0.9;
+                const y1 = centerY + Math.sin(rad) * radius * 0.9;
+                const x2 = centerX + Math.cos(rad) * radius;
+                const y2 = centerY + Math.sin(rad) * radius;
+                
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+            
+            // Direction labels
+            ctx.fillStyle = 'rgba(139, 92, 246, 0.6)';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            ctx.fillText('N', centerX, centerY - radius - 10);
+            ctx.fillText('S', centerX, centerY + radius + 10);
+            ctx.fillText('E', centerX + radius + 10, centerY);
+            ctx.fillText('W', centerX - radius - 10, centerY);
+            
+            // Center point
+            ctx.fillStyle = '#8b5cf6';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 3, 0, Math.PI * 2);
+            ctx.fill();
         }
         
         // Start Real-time Indicators
