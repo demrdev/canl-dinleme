@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Testi</title>
+    <style>
+        body {
+            font-family: system-ui;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        .test-item {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+        .success { background: rgba(16, 185, 129, 0.3); }
+        .error { background: rgba(239, 68, 68, 0.3); }
+        h1 { text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Canlı Dinleme Pro - Sistem Testi</h1>
+    
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function addResult(test, success, message) {
+            const div = document.createElement('div');
+            div.className = `test-item ${success ? 'success' : 'error'}`;
+            div.innerHTML = `
+                <strong>${success ? '✅' : '❌'} ${test}:</strong><br>
+                ${message}
+            `;
+            results.appendChild(div);
+        }
+        
+        // Test 1: Browser Compatibility
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            addResult('Tarayıcı Uyumluluğu', true, 'WebRTC API destekleniyor');
+        } else {
+            addResult('Tarayıcı Uyumluluğu', false, 'WebRTC API desteklenmiyor');
+        }
+        
+        // Test 2: Audio Context
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioContext();
+            addResult('Audio Context', true, `Sample Rate: ${ctx.sampleRate}Hz`);
+            ctx.close();
+        } catch (e) {
+            addResult('Audio Context', false, e.message);
+        }
+        
+        // Test 3: HTTPS Check
+        if (location.protocol === 'https:' || location.hostname === 'localhost') {
+            addResult('HTTPS Kontrolü', true, 'Güvenli bağlantı mevcut');
+        } else {
+            addResult('HTTPS Kontrolü', false, 'HTTPS gerekli (mikrofon erişimi için)');
+        }
+        
+        // Test 4: Advanced Audio Processor
+        if (typeof AdvancedAudioProcessor !== 'undefined') {
+            addResult('Gelişmiş Ses İşlemci', true, 'advanced-audio-processor.js yüklendi');
+        } else {
+            addResult('Gelişmiş Ses İşlemci', false, 'advanced-audio-processor.js yüklenemedi (fallback kullanılacak)');
+        }
+        
+        // Test 5: Heartbeat Demo
+        if (typeof HeartbeatDetectionDemo !== 'undefined') {
+            addResult('Kalp Atışı Demo', true, 'heartbeat-demo.js yüklendi');
+        } else {
+            addResult('Kalp Atışı Demo', false, 'heartbeat-demo.js yüklenemedi');
+        }
+        
+        // Test 6: Required Elements
+        const requiredElements = [
+            'startBtn', 'stopBtn', 'visualizer', 'statusBar',
+            'volumeSlider', 'clarityValue', 'distanceValue',
+            'directionValue', 'gainValue', 'noiseValue',
+            'spectrogram', 'soundMap3D', 'bpmDisplay'
+        ];
+        
+        let missingElements = [];
+        requiredElements.forEach(id => {
+            if (!document.getElementById(id)) {
+                missingElements.push(id);
+            }
+        });
+        
+        if (missingElements.length === 0) {
+            addResult('HTML Elementleri', true, 'Tüm gerekli elementler mevcut');
+        } else {
+            addResult('HTML Elementleri', false, `Eksik elementler: ${missingElements.join(', ')}`);
+        }
+        
+        // Test 7: Local Storage
+        try {
+            localStorage.setItem('test', 'test');
+            localStorage.removeItem('test');
+            addResult('Local Storage', true, 'Kullanılabilir');
+        } catch (e) {
+            addResult('Local Storage', false, 'Kullanılamıyor');
+        }
+        
+        // Test 8: Service Worker Support
+        if ('serviceWorker' in navigator) {
+            addResult('Service Worker', true, 'PWA desteği mevcut');
+        } else {
+            addResult('Service Worker', false, 'PWA desteği yok');
+        }
+    </script>
+    
+    <div style="margin-top: 40px; text-align: center; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+        <h3>📱 Ana Uygulamaya Dön</h3>
+        <a href="index.html" style="color: white; font-size: 18px;">➡️ Canlı Dinleme Pro'yu Başlat</a>
+        <br><br>
+        <small>GitHub Pages: https://demrdev.github.io/canl-dinleme/</small>
+    </div>
+</body>
+</html>
