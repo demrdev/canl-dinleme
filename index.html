@@ -7,8 +7,9 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#667eea">
     <meta name="description" content="Gelişmiş canlı dinleme ve ses odaklama sistemi. AI destekli ses izolasyonu, çoklu mod desteği, profesyonel ses amplifikasyonu.">
-    <title>Canlı Dinleme Pro - Gelişmiş Ses Sistemi</title>
+    <title>Ultra Advanced Sound Detection & AI Analysis System</title>
     <link rel="manifest" href="manifest.json">
+    <script src="advanced-audio-processor.js"></script>
     <style>
         * {
             margin: 0;
@@ -655,6 +656,33 @@
             100% { transform: rotate(360deg); }
         }
         
+        /* AI Category Styles */
+        .ai-category {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 8px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s;
+        }
+        
+        .ai-category.active {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: #a78bfa;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+        }
+        
+        .confidence-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #10b981, #3b82f6, #8b5cf6);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        
         /* Mobile Optimizations */
         @media (max-width: 500px) {
             .container {
@@ -829,15 +857,88 @@
             </div>
         </div>
         
-        <!-- Real-time Indicators -->
-        <div class="indicators-grid">
+        <!-- AI Sound Classification Display -->
+        <div style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; padding: 15px; margin-bottom: 20px; border: 1px solid rgba(139, 92, 246, 0.3);">
+            <h3 style="color: #a78bfa; margin-bottom: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">🤖 AI Ses Analizi</h3>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;" id="aiCategories">
+                <div class="ai-category" data-category="human">
+                    <div style="font-size: 20px;">👤</div>
+                    <div style="font-size: 11px;">İnsan</div>
+                    <div class="confidence-bar" style="width: 0%"></div>
+                </div>
+                <div class="ai-category" data-category="animal">
+                    <div style="font-size: 20px;">🐾</div>
+                    <div style="font-size: 11px;">Hayvan</div>
+                    <div class="confidence-bar" style="width: 0%"></div>
+                </div>
+                <div class="ai-category" data-category="vehicle">
+                    <div style="font-size: 20px;">🚗</div>
+                    <div style="font-size: 11px;">Araç</div>
+                    <div class="confidence-bar" style="width: 0%"></div>
+                </div>
+                <div class="ai-category" data-category="nature">
+                    <div style="font-size: 20px;">🌿</div>
+                    <div style="font-size: 11px;">Doğa</div>
+                    <div class="confidence-bar" style="width: 0%"></div>
+                </div>
+                <div class="ai-category" data-category="music">
+                    <div style="font-size: 20px;">🎵</div>
+                    <div style="font-size: 11px;">Müzik</div>
+                    <div class="confidence-bar" style="width: 0%"></div>
+                </div>
+                <div class="ai-category" data-category="emergency">
+                    <div style="font-size: 20px;">🚨</div>
+                    <div style="font-size: 11px;">Acil</div>
+                    <div class="confidence-bar" style="width: 0%"></div>
+                </div>
+                <div class="ai-category" data-category="mechanical">
+                    <div style="font-size: 20px;">⚙️</div>
+                    <div style="font-size: 11px;">Mekanik</div>
+                    <div class="confidence-bar" style="width: 0%"></div>
+                </div>
+                <div class="ai-category" data-category="electronic">
+                    <div style="font-size: 20px;">📱</div>
+                    <div style="font-size: 11px;">Elektronik</div>
+                    <div class="confidence-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Detection Mode Selector -->
+        <div style="background: #f3f4f6; border-radius: 12px; padding: 12px; margin-bottom: 20px;">
+            <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px; color: #374151;">🎯 Algılama Modu</div>
+            <div style="display: flex; gap: 8px; overflow-x: auto;">
+                <button class="detection-mode-btn active" data-mode="near" onclick="setDetectionMode('near')" style="padding: 8px 12px; border: none; border-radius: 8px; background: #10b981; color: white; font-size: 12px; cursor: pointer;">
+                    🎯 Yakın
+                </button>
+                <button class="detection-mode-btn" data-mode="medium" onclick="setDetectionMode('medium')" style="padding: 8px 12px; border: none; border-radius: 8px; background: #e5e7eb; color: #374151; font-size: 12px; cursor: pointer;">
+                    📡 Orta
+                </button>
+                <button class="detection-mode-btn" data-mode="far" onclick="setDetectionMode('far')" style="padding: 8px 12px; border: none; border-radius: 8px; background: #e5e7eb; color: #374151; font-size: 12px; cursor: pointer;">
+                    🛰️ Uzak
+                </button>
+                <button class="detection-mode-btn" data-mode="all" onclick="setDetectionMode('all')" style="padding: 8px 12px; border: none; border-radius: 8px; background: #e5e7eb; color: #374151; font-size: 12px; cursor: pointer;">
+                    🌐 Tümü
+                </button>
+                <button class="detection-mode-btn" data-mode="ai" onclick="setDetectionMode('ai')" style="padding: 8px 12px; border: none; border-radius: 8px; background: #e5e7eb; color: #374151; font-size: 12px; cursor: pointer;">
+                    🤖 AI
+                </button>
+            </div>
+        </div>
+        
+        <!-- Real-time Indicators Enhanced -->
+        <div class="indicators-grid" style="grid-template-columns: repeat(4, 1fr);">
             <div class="indicator-card">
                 <div class="indicator-value" id="clarityValue">0%</div>
                 <div class="indicator-label">Netlik</div>
             </div>
             <div class="indicator-card">
-                <div class="indicator-value" id="noiseValue">0dB</div>
-                <div class="indicator-label">Gürültü</div>
+                <div class="indicator-value" id="distanceValue">0m</div>
+                <div class="indicator-label">Mesafe</div>
+            </div>
+            <div class="indicator-card">
+                <div class="indicator-value" id="directionValue">0°</div>
+                <div class="indicator-label">Yön</div>
             </div>
             <div class="indicator-card">
                 <div class="indicator-value" id="gainValue">1x</div>
@@ -878,7 +979,7 @@
                 </div>
                 <div class="slider-container">
                     <input type="range" class="volume-slider" id="volumeSlider" 
-                           min="1" max="20" value="5" step="0.5"
+                           min="1" max="500" value="10" step="1"
                            oninput="updateVolume(this.value)">
                 </div>
             </div>
@@ -988,6 +1089,15 @@
         let isListening = false;
         let currentMode = 'normal';
         
+        // Advanced Processors
+        let advancedProcessor = null;
+        let soundClassifier = null;
+        let distanceEstimator = null;
+        let directionDetector = null;
+        let spectrogramData = [];
+        let detectionMode = 'medium';
+        let aiAnalysisInterval = null;
+        
         // Audio Processing Nodes
         let voiceIsolationFilter = null;
         let noiseGate = null;
@@ -1003,6 +1113,54 @@
             noiseReduction: false,
             speechEnhance: false,
             directionFocus: false
+        };
+        
+        // Initialize Advanced Processors
+        async function initializeAdvancedProcessors() {
+            advancedProcessor = new AdvancedAudioProcessor();
+            await advancedProcessor.initialize(96000);
+            soundClassifier = advancedProcessor.soundClassifier;
+            distanceEstimator = advancedProcessor.distanceEstimator;
+            directionDetector = advancedProcessor.directionDetector;
+        }
+        
+        // Detection Modes Configuration
+        const detectionModes = {
+            near: { 
+                name: 'Yakın (0-5m)', 
+                range: [0, 5], 
+                sensitivity: 2.0, 
+                icon: '🎯',
+                color: '#10b981'
+            },
+            medium: { 
+                name: 'Orta (5-20m)', 
+                range: [5, 20], 
+                sensitivity: 1.0,
+                icon: '📡',
+                color: '#3b82f6'
+            },
+            far: { 
+                name: 'Uzak (20-50m)', 
+                range: [20, 50], 
+                sensitivity: 0.5,
+                icon: '🛰️',
+                color: '#8b5cf6'
+            },
+            all: { 
+                name: 'Tüm Sesler', 
+                range: [0, 100], 
+                sensitivity: 0.8,
+                icon: '🌐',
+                color: '#ef4444'
+            },
+            ai: { 
+                name: 'AI Akıllı Mod', 
+                range: 'adaptive', 
+                sensitivity: 'auto',
+                icon: '🤖',
+                color: '#f59e0b'
+            }
         };
         
         // Audio Processing Configuration
@@ -1276,11 +1434,126 @@
             return names[feature] || feature;
         }
         
+        // Set Detection Mode
+        function setDetectionMode(mode) {
+            detectionMode = mode;
+            
+            // Update UI
+            document.querySelectorAll('.detection-mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.style.background = '#e5e7eb';
+                btn.style.color = '#374151';
+            });
+            
+            const activeBtn = document.querySelector(`[data-mode="${mode}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+                const modeConfig = detectionModes[mode];
+                activeBtn.style.background = modeConfig.color;
+                activeBtn.style.color = 'white';
+            }
+            
+            // Apply detection mode settings
+            if (isListening && advancedProcessor) {
+                applyDetectionMode();
+            }
+            
+            updateStatus(`🎯 Algılama modu: ${detectionModes[mode].name}`, 'warning');
+        }
+        
+        // Apply Detection Mode Settings
+        function applyDetectionMode() {
+            if (!advancedProcessor) return;
+            
+            const mode = detectionModes[detectionMode];
+            
+            // Adjust sensitivity
+            if (gainNode) {
+                const baseGain = parseFloat(document.getElementById('volumeSlider').value);
+                gainNode.gain.value = baseGain * mode.sensitivity;
+            }
+            
+            // Update processor settings
+            advancedProcessor.currentMode = detectionMode;
+        }
+        
+        // AI Analysis Function
+        async function performAIAnalysis() {
+            if (!analyser || !soundClassifier || !distanceEstimator || !directionDetector) return;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const frequencyData = new Uint8Array(bufferLength);
+            const timeData = new Float32Array(bufferLength);
+            
+            analyser.getByteFrequencyData(frequencyData);
+            analyser.getFloatTimeDomainData(timeData);
+            
+            // Sound Classification
+            const classification = soundClassifier.classify(frequencyData, timeData);
+            updateAICategories(classification);
+            
+            // Distance Estimation
+            const distance = distanceEstimator.estimateDistance(frequencyData, timeData);
+            document.getElementById('distanceValue').textContent = `${distance.distance}m`;
+            
+            // Direction Detection (simplified for mono input)
+            const direction = directionDetector.detectDirection(timeData, timeData);
+            document.getElementById('directionValue').textContent = `${direction.angle}°`;
+            
+            // Update status based on detection
+            if (classification.confidence > 70) {
+                const emoji = getEmojiForCategory(classification.category);
+                updateStatus(`${emoji} Algılandı: ${classification.category} (${Math.round(classification.confidence)}%)`, 'active');
+            }
+        }
+        
+        // Update AI Categories Display
+        function updateAICategories(classification) {
+            const categories = classification.allConfidences;
+            
+            Object.entries(categories).forEach(([category, data]) => {
+                const element = document.querySelector(`[data-category="${category}"]`);
+                if (element) {
+                    const confidence = data.confidence || 0;
+                    const bar = element.querySelector('.confidence-bar');
+                    
+                    if (bar) {
+                        bar.style.width = `${confidence}%`;
+                    }
+                    
+                    if (confidence > 50) {
+                        element.classList.add('active');
+                    } else {
+                        element.classList.remove('active');
+                    }
+                }
+            });
+        }
+        
+        // Get Emoji for Category
+        function getEmojiForCategory(category) {
+            const emojis = {
+                human: '👤',
+                animal: '🐾',
+                vehicle: '🚗',
+                nature: '🌿',
+                music: '🎵',
+                emergency: '🚨',
+                mechanical: '⚙️',
+                electronic: '📱',
+                unknown: '❓'
+            };
+            return emojis[category] || emojis.unknown;
+        }
+        
         // Quick Start
         async function quickStart() {
             showLoading(true);
             
             try {
+                // Initialize advanced processors
+                await initializeAdvancedProcessors();
+                
                 // Initialize audio system
                 const initialized = await initializeAudioSystem();
                 if (!initialized) {
@@ -1527,6 +1800,9 @@
                 // Start real-time indicators
                 startIndicators();
                 
+                // Start AI analysis
+                aiAnalysisInterval = setInterval(performAIAnalysis, 50); // 20 FPS
+                
             } catch (error) {
                 console.error('Start listening error:', error);
                 showError('Dinleme başlatılamadı: ' + error.message);
@@ -1594,10 +1870,24 @@
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
+            // Stop AI analysis
+            if (aiAnalysisInterval) {
+                clearInterval(aiAnalysisInterval);
+                aiAnalysisInterval = null;
+            }
+            
             // Reset indicators
             document.getElementById('clarityValue').textContent = '0%';
-            document.getElementById('noiseValue').textContent = '0dB';
+            document.getElementById('distanceValue').textContent = '0m';
+            document.getElementById('directionValue').textContent = '0°';
             document.getElementById('gainValue').textContent = '1x';
+            
+            // Reset AI categories
+            document.querySelectorAll('.ai-category').forEach(cat => {
+                cat.classList.remove('active');
+                const bar = cat.querySelector('.confidence-bar');
+                if (bar) bar.style.width = '0%';
+            });
         }
         
         // Toggle Mute
@@ -1617,10 +1907,11 @@
             }
         }
         
-        // Update Volume
+        // Update Volume with 500x max
         function updateVolume(value) {
-            document.getElementById('volumeValue').textContent = value + 'x';
-            document.getElementById('gainValue').textContent = value + 'x';
+            const displayValue = value > 100 ? `${value}x 🔥` : `${value}x`;
+            document.getElementById('volumeValue').textContent = displayValue;
+            document.getElementById('gainValue').textContent = displayValue;
             
             if (gainNode && !isMuted) {
                 gainNode.gain.value = value;
