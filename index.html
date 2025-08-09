@@ -1210,8 +1210,77 @@
                 compression: 0.9,
                 noiseGate: -40,
                 clarityBoost: true
+            },
+            medical: {
+                lowFreq: 20,
+                highFreq: 200,
+                gain: 50, // Very high gain for weak signals
+                compression: 0.95,
+                noiseGate: -60,
+                heartbeatMode: true
             }
         };
+        
+        // Medical Demo Variables and Functions
+        let heartbeatDemo = null;
+        let heartbeatInterval = null;
+        let medicalModeAccepted = false;
+        
+        // Accept Medical Demo
+        function acceptMedicalDemo() {
+            medicalModeAccepted = true;
+            document.getElementById('medicalWarning').style.display = 'none';
+            document.getElementById('heartbeatDisplay').style.display = 'block';
+            
+            // Initialize heartbeat demo
+            if (!heartbeatDemo) {
+                heartbeatDemo = new HeartbeatDetectionDemo();
+            }
+            
+            // Start heartbeat analysis if listening
+            if (isListening) {
+                startHeartbeatAnalysis();
+            }
+        }
+        
+        // Start Heartbeat Analysis
+        function startHeartbeatAnalysis() {
+            if (!heartbeatDemo || !analyser) return;
+            
+            const canvas = document.getElementById('heartbeatWaveform');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            heartbeatInterval = setInterval(() => {
+                const bufferLength = analyser.frequencyBinCount;
+                const timeData = new Float32Array(bufferLength);
+                analyser.getFloatTimeDomainData(timeData);
+                
+                // Apply envelope detection
+                const envelope = heartbeatDemo.envelopeDetection(timeData);
+                
+                // Detect rhythm
+                const result = heartbeatDemo.detectRhythmicPatterns(envelope);
+                
+                // Update display
+                document.getElementById('bpmDisplay').textContent = result.bpm || '--';
+                document.getElementById('confidenceDisplay').textContent = result.confidence + '%';
+                document.getElementById('bpmType').textContent = result.type ? result.type.type : 'Analiz ediliyor...';
+                
+                // Update visualization
+                heartbeatDemo.generateHeartbeatVisualization(result.bpm, canvas);
+                
+                // Color coding based on BPM range
+                const bpmElement = document.getElementById('bpmDisplay');
+                if (result.bpm >= 120 && result.bpm <= 160) {
+                    bpmElement.style.color = '#10b981'; // Green for fetal range
+                } else if (result.bpm >= 60 && result.bpm <= 100) {
+                    bpmElement.style.color = '#3b82f6'; // Blue for adult range
+                } else {
+                    bpmElement.style.color = '#f59e0b'; // Orange for unusual
+                }
+            }, 100); // 10 FPS for heartbeat analysis
+        }
         
         // Voice Isolation Engine
         class VoiceIsolationEngine {
@@ -1342,6 +1411,26 @@
                 advancedPanel.classList.remove('show');
             }
             
+            // Handle medical demo mode
+            if (mode === 'medical') {
+                document.getElementById('medicalWarning').style.display = 'block';
+                document.getElementById('aiCategories').parentElement.style.display = 'none';
+                if (medicalModeAccepted) {
+                    document.getElementById('heartbeatDisplay').style.display = 'block';
+                    if (isListening) {
+                        startHeartbeatAnalysis();
+                    }
+                }
+            } else {
+                document.getElementById('medicalWarning').style.display = 'none';
+                document.getElementById('heartbeatDisplay').style.display = 'none';
+                document.getElementById('aiCategories').parentElement.style.display = 'block';
+                if (heartbeatInterval) {
+                    clearInterval(heartbeatInterval);
+                    heartbeatInterval = null;
+                }
+            }
+            
             // Apply mode configuration if listening
             if (isListening && audioContext) {
                 applyModeConfiguration();
@@ -1358,7 +1447,8 @@
                 meeting: 'Toplantı Modu',
                 outdoor: 'Dış Mekan',
                 music: 'Müzik',
-                elderly: 'Yaşlı Dostu'
+                elderly: 'Yaşlı Dostu',
+                medical: 'Kalp Atışı Demo (Eğitsel)'
             };
             return names[mode] || mode;
         }
@@ -1800,8 +1890,14 @@
                 // Start real-time indicators
                 startIndicators();
                 
-                // Start AI analysis
-                aiAnalysisInterval = setInterval(performAIAnalysis, 50); // 20 FPS
+                // Start AI analysis or heartbeat analysis based on mode
+                if (currentMode === 'medical') {
+                    if (medicalModeAccepted) {
+                        startHeartbeatAnalysis();
+                    }
+                } else {
+                    aiAnalysisInterval = setInterval(performAIAnalysis, 50); // 20 FPS
+                }
                 
             } catch (error) {
                 console.error('Start listening error:', error);
@@ -1874,6 +1970,12 @@
             if (aiAnalysisInterval) {
                 clearInterval(aiAnalysisInterval);
                 aiAnalysisInterval = null;
+            }
+            
+            // Stop heartbeat analysis
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
             }
             
             // Reset indicators
