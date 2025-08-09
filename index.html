@@ -828,6 +828,10 @@
                 <span class="mode-icon">👴</span>
                 <span class="mode-name">Yaşlı</span>
             </button>
+            <button class="mode-tab" data-mode="medical" onclick="setMode('medical')">
+                <span class="mode-icon">❤️</span>
+                <span class="mode-name">Kalp Demo</span>
+            </button>
         </div>
         
         <!-- Advanced Features Panel -->
@@ -854,6 +858,45 @@
                     <div class="feature-name">Yön Odaklama</div>
                     <div class="feature-desc">Belirli yöne odaklan</div>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Medical Demo Warning -->
+        <div id="medicalWarning" style="display: none; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 16px; padding: 20px; margin-bottom: 20px; color: white; border: 2px solid #b91c1c;">
+            <h3 style="font-size: 18px; margin-bottom: 12px;">⚠️ ÖNEMLİ UYARI - EĞİTSEL DEMO</h3>
+            <p style="font-size: 14px; line-height: 1.6; margin-bottom: 10px;">
+                <strong>BU SADECE EĞİTSEL AMAÇLI BİR TEKNİK DEMODUR!</strong><br>
+                • Gerçek tıbbi tanı veya izleme için KULLANILAMAZ<br>
+                • Bebek kalp atışı kontrolü için mutlaka doktorunuza başvurun<br>
+                • Bu sadece ses işleme teknolojisinin yeteneklerini gösterir<br>
+                • Tıbbi amaçlı kullanım hayati tehlike oluşturabilir
+            </p>
+            <button onclick="acceptMedicalDemo()" style="background: white; color: #dc2626; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                Anladım, Sadece Demo Olarak Kullanacağım
+            </button>
+        </div>
+        
+        <!-- Heartbeat Demo Display -->
+        <div id="heartbeatDisplay" style="display: none; background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid rgba(239, 68, 68, 0.3);">
+            <h3 style="color: #fca5a5; margin-bottom: 15px; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">
+                ❤️ Kalp Atışı Ritim Analizi (Eğitsel Demo)
+            </h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 15px; text-align: center;">
+                    <div style="font-size: 48px; font-weight: bold; color: #10b981;" id="bpmDisplay">--</div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-top: 5px;">BPM (Demo)</div>
+                    <div style="font-size: 12px; color: #f59e0b; margin-top: 10px;" id="bpmType">Bekliyor...</div>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 15px; text-align: center;">
+                    <div style="font-size: 48px; font-weight: bold; color: #3b82f6;" id="confidenceDisplay">0%</div>
+                    <div style="font-size: 14px; color: #94a3b8; margin-top: 5px;">Sinyal Kalitesi</div>
+                    <div style="font-size: 12px; color: #ef4444; margin-top: 10px;">Tıbbi Değil</div>
+                </div>
+            </div>
+            <canvas id="heartbeatWaveform" style="width: 100%; height: 150px; margin-top: 15px; border-radius: 8px; background: #0f172a;"></canvas>
+            <div style="margin-top: 15px; padding: 10px; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <strong style="color: #fca5a5; font-size: 12px;">🔴 DEMO UYARISI:</strong>
+                <span style="color: #fca5a5; font-size: 11px;">Bu sadece eğitim amaçlı teknik bir gösterimdir. Gerçek kalp atışı tespiti için profesyonel tıbbi cihazlar gereklidir.</span>
             </div>
         </div>
         
