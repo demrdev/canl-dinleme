@@ -587,6 +587,11 @@
             try {
                 updateStatus('🎤 Mikrofon izni isteniyor...', 'idle');
                 
+                // HTTPS kontrolü
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    console.warn('⚠️ Güvenli bağlantı (HTTPS) gerekli. GitHub Pages üzerinde çalıştığınızdan emin olun.');
+                }
+                
                 // iOS için özel kontrol
                 if (isIOS()) {
                     // iOS'ta getUserMedia direkt çağrılmalı
@@ -655,48 +660,74 @@
                 showLoading(true);
                 updateStatus('🎤 Mikrofon başlatılıyor...', 'idle');
                 
-                // Audio context oluştur
+                // Audio context oluştur - her zaman yeni oluştur
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioContext = new AudioContext();
+                audioContext = new AudioContext({
+                    latencyHint: 'interactive',
+                    sampleRate: 44100
+                });
                 
-                // iOS için resume gerekebilir
+                // iOS ve diğer tarayıcılar için audio context'i aktifleştir
                 if (audioContext.state === 'suspended') {
                     await audioContext.resume();
                 }
                 
-                // Mikrofon stream'i al
-                const constraints = {
-                    audio: {
-                        echoCancellation: false,
-                        noiseSuppression: false,
-                        autoGainControl: false,
-                        sampleRate: 44100
-                    },
-                    video: false
-                };
+                // Mikrofon stream'i al - daha basit constraints kullan
+                let constraints;
                 
-                // iOS için basitleştirilmiş constraints
                 if (isIOS()) {
-                    stream = await navigator.mediaDevices.getUserMedia({ 
+                    // iOS için en basit constraints
+                    constraints = { 
                         audio: true,
                         video: false 
-                    });
+                    };
                 } else {
-                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    // Diğer platformlar için optimize edilmiş constraints
+                    constraints = {
+                        audio: {
+                            echoCancellation: false,
+                            noiseSuppression: false,
+                            autoGainControl: false,
+                            channelCount: 2,
+                            latency: 0,
+                            sampleRate: audioContext.sampleRate
+                        },
+                        video: false
+                    };
                 }
                 
-                // Audio zinciri kur
-                source = audioContext.createMediaStreamSource(stream);
-                gainNode = audioContext.createGain();
-                gainNode.gain.value = volumeSlider.value;
+                console.log('Mikrofon erişimi isteniyor...', constraints);
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                console.log('Mikrofon stream alındı:', stream.getAudioTracks());
                 
+                // Audio zinciri kur - daha güvenilir bağlantı
+                source = audioContext.createMediaStreamSource(stream);
+                
+                // Gain node (ses yükseltici)
+                gainNode = audioContext.createGain();
+                gainNode.gain.setValueAtTime(parseFloat(volumeSlider.value), audioContext.currentTime);
+                
+                // Analyser (görselleştirme için)
                 analyser = audioContext.createAnalyser();
                 analyser.fftSize = 256;
                 analyser.smoothingTimeConstant = 0.8;
                 
+                // Kompresör ekle (ses kalitesini iyileştirmek için)
+                const compressor = audioContext.createDynamicsCompressor();
+                compressor.threshold.setValueAtTime(-50, audioContext.currentTime);
+                compressor.knee.setValueAtTime(40, audioContext.currentTime);
+                compressor.ratio.setValueAtTime(12, audioContext.currentTime);
+                compressor.attack.setValueAtTime(0, audioContext.currentTime);
+                compressor.release.setValueAtTime(0.25, audioContext.currentTime);
+                
+                // Bağlantıları kur
                 source.connect(gainNode);
-                gainNode.connect(analyser);
-                gainNode.connect(audioContext.destination);
+                gainNode.connect(compressor);
+                compressor.connect(analyser);
+                compressor.connect(audioContext.destination);
+                
+                console.log('Audio zinciri kuruldu. Sample rate:', audioContext.sampleRate);
+                console.log('Audio context state:', audioContext.state);
                 
                 // UI güncelle
                 isListening = true;
@@ -705,22 +736,74 @@
                 muteBtn.disabled = false;
                 liveBadge.style.display = 'inline-block';
                 
-                updateStatus('🎧 Canlı dinleme aktif', 'active');
+                updateStatus('🎧 Canlı dinleme aktif - Kulaklık takın!', 'active');
                 
                 // Görselleştirmeyi başlat
                 visualize();
                 
+                // Ses seviyesini kontrol et
+                checkAudioLevel();
+                
             } catch (error) {
                 console.error('Dinleme başlatma hatası:', error);
-                showError('Başlatma hatası: ' + error.message);
+                
+                let errorMessage = 'Başlatma hatası: ';
+                if (error.name === 'NotAllowedError') {
+                    errorMessage = 'Mikrofon izni reddedildi. Lütfen tarayıcı ayarlarından izin verin.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage = 'Mikrofon bulunamadı. Cihazınızda mikrofon var mı?';
+                } else if (error.name === 'NotReadableError') {
+                    errorMessage = 'Mikrofon başka bir uygulama tarafından kullanılıyor.';
+                } else if (error.name === 'OverconstrainedError') {
+                    errorMessage = 'Mikrofon ayarları desteklenmiyor.';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                showError(errorMessage);
                 
                 if (audioContext) {
                     audioContext.close();
                     audioContext = null;
                 }
+                
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    stream = null;
+                }
             } finally {
                 showLoading(false);
             }
+        }
+        
+        // Ses seviyesini kontrol et
+        function checkAudioLevel() {
+            if (!analyser || !isListening) return;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            function check() {
+                if (!isListening) return;
+                
+                analyser.getByteFrequencyData(dataArray);
+                
+                // Ortalama ses seviyesini hesapla
+                let sum = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    sum += dataArray[i];
+                }
+                const average = sum / bufferLength;
+                
+                // Ses seviyesi çok düşükse uyar
+                if (average < 1) {
+                    console.log('Dikkat: Ses seviyesi çok düşük veya ses algılanmıyor');
+                }
+                
+                setTimeout(check, 1000); // Her saniye kontrol et
+            }
+            
+            check();
         }
         
         // Dinlemeyi durdur
@@ -785,9 +868,11 @@
         
         // Ses seviyesi güncelleme
         function updateVolume(value) {
-            volumeValue.textContent = value + 'x';
+            const floatValue = parseFloat(value);
+            volumeValue.textContent = floatValue + 'x';
             if (gainNode && !isMuted) {
-                gainNode.gain.value = value;
+                // Smooth transition kullan
+                gainNode.gain.setValueAtTime(floatValue, audioContext.currentTime);
             }
         }
         
@@ -862,6 +947,13 @@
                 return;
             }
             
+            // HTTPS kontrolü ve uyarı
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                permissionCard.className = 'permission-card error';
+                permissionText.innerHTML = '<strong>⚠️ HTTPS Gerekli</strong><br>Mikrofon erişimi için güvenli bağlantı (HTTPS) gereklidir.<br>GitHub Pages üzerinde açın: https://demrdev.github.io/canl-dinleme/';
+                console.error('HTTPS gerekli! Mikrofon erişimi HTTP üzerinden çalışmaz.');
+            }
+            
             // Mobil cihaz bilgisi
             if (isMobile()) {
                 console.log('Mobil cihaz algılandı:', detectBrowser());
@@ -876,6 +968,12 @@
                     }
                 }, { once: true });
             }
+            
+            // Debug bilgisi
+            console.log('Uygulama başlatıldı');
+            console.log('Protocol:', location.protocol);
+            console.log('Hostname:', location.hostname);
+            console.log('User Agent:', navigator.userAgent);
         });
         
         // Sayfa gizlendiğinde
