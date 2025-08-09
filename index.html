@@ -392,11 +392,14 @@
         </h1>
         
         <div class="quick-start">
-            <h2>🚀 Hızlı Başlangıç</h2>
+            <h2>🚀 Hızlı Başlangıç - Gelişmiş Dinleme</h2>
             <button class="big-button" onclick="quickStart()">
                 <span>🎤</span>
-                <span>Mikrofonu Aç ve Başla</span>
+                <span>Süper Hassas Mikrofonu Başlat</span>
             </button>
+            <div style="margin-top: 10px; color: rgba(255,255,255,0.9); font-size: 13px;">
+                🎯 50x'e kadar güçlendirme • Derin sesler • Uzak mesafe algılama
+            </div>
         </div>
         
         <div class="permission-card" id="permissionCard">
@@ -432,11 +435,16 @@
             <div class="volume-section">
                 <div class="volume-header">
                     <span class="volume-label">🔊 Ses Güçlendirme</span>
-                    <span class="volume-value" id="volumeValue">5x</span>
+                    <span class="volume-value" id="volumeValue">10x</span>
                 </div>
                 <input type="range" class="volume-slider" id="volumeSlider" 
-                       min="1" max="20" value="5" step="0.5"
+                       min="1" max="50" value="10" step="1"
                        oninput="updateVolume(this.value)">
+                <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 12px; color: #6b7280;">
+                    <span>Düşük (1x)</span>
+                    <span>Orta (25x)</span>
+                    <span>Maksimum (50x)</span>
+                </div>
             </div>
         </div>
         
@@ -474,7 +482,8 @@
                 <div style="color: #92400e; font-size: 13px; margin-top: 5px;">
                     • Geri beslemeyi önlemek için mutlaka kulaklık kullanın<br>
                     • Mikrofon izni bir kez verildiğinde kaydedilir<br>
-                    • Ses 1x-20x arası güçlendirilebilir
+                    • Ses 1x-50x arası güçlendirilebilir<br>
+                    • Uzaktaki ve derin sesleri duyabilirsiniz
                 </div>
             </div>
         </div>
@@ -490,6 +499,10 @@
         let animationId = null;
         let isMuted = false;
         let isListening = false;
+        let compressor = null;
+        let bassBoost = null;
+        let trebleBoost = null;
+        let preAmp = null;
         
         // DOM elementleri
         const startBtn = document.getElementById('startBtn');
@@ -672,7 +685,7 @@
                     await audioContext.resume();
                 }
                 
-                // Mikrofon stream'i al - daha basit constraints kullan
+                // Mikrofon stream'i al - maksimum hassasiyet için ayarlar
                 let constraints;
                 
                 if (isIOS()) {
@@ -682,7 +695,7 @@
                         video: false 
                     };
                 } else {
-                    // Diğer platformlar için optimize edilmiş constraints
+                    // Diğer platformlar için maksimum kalite ve hassasiyet
                     constraints = {
                         audio: {
                             echoCancellation: false,
@@ -690,7 +703,13 @@
                             autoGainControl: false,
                             channelCount: 2,
                             latency: 0,
-                            sampleRate: audioContext.sampleRate
+                            sampleRate: 48000,
+                            sampleSize: 24,
+                            googEchoCancellation: false,
+                            googAutoGainControl: false,
+                            googNoiseSuppression: false,
+                            googHighpassFilter: false,
+                            googTypingNoiseDetection: false
                         },
                         video: false
                     };
@@ -700,31 +719,69 @@
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
                 console.log('Mikrofon stream alındı:', stream.getAudioTracks());
                 
-                // Audio zinciri kur - daha güvenilir bağlantı
+                // Audio zinciri kur - gelişmiş ses işleme
                 source = audioContext.createMediaStreamSource(stream);
                 
-                // Gain node (ses yükseltici)
+                // Pre-amplifier (ön yükseltici)
+                preAmp = audioContext.createGain();
+                preAmp.gain.setValueAtTime(2.0, audioContext.currentTime);
+                
+                // Bass boost filter (düşük frekansları güçlendir - derin sesler için)
+                bassBoost = audioContext.createBiquadFilter();
+                bassBoost.type = 'lowshelf';
+                bassBoost.frequency.setValueAtTime(320, audioContext.currentTime);
+                bassBoost.gain.setValueAtTime(12, audioContext.currentTime);
+                
+                // Mid-range boost (orta frekanslar - konuşma için)
+                const midBoost = audioContext.createBiquadFilter();
+                midBoost.type = 'peaking';
+                midBoost.frequency.setValueAtTime(1000, audioContext.currentTime);
+                midBoost.Q.setValueAtTime(0.5, audioContext.currentTime);
+                midBoost.gain.setValueAtTime(6, audioContext.currentTime);
+                
+                // Treble boost filter (yüksek frekansları netleştir)
+                trebleBoost = audioContext.createBiquadFilter();
+                trebleBoost.type = 'highshelf';
+                trebleBoost.frequency.setValueAtTime(3200, audioContext.currentTime);
+                trebleBoost.gain.setValueAtTime(8, audioContext.currentTime);
+                
+                // Kompresör (dinamik aralığı kontrol et)
+                compressor = audioContext.createDynamicsCompressor();
+                compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
+                compressor.knee.setValueAtTime(30, audioContext.currentTime);
+                compressor.ratio.setValueAtTime(12, audioContext.currentTime);
+                compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
+                compressor.release.setValueAtTime(0.1, audioContext.currentTime);
+                
+                // Limiter (aşırı ses seviyelerini önle)
+                const limiter = audioContext.createDynamicsCompressor();
+                limiter.threshold.setValueAtTime(-3, audioContext.currentTime);
+                limiter.knee.setValueAtTime(0, audioContext.currentTime);
+                limiter.ratio.setValueAtTime(20, audioContext.currentTime);
+                limiter.attack.setValueAtTime(0.001, audioContext.currentTime);
+                limiter.release.setValueAtTime(0.01, audioContext.currentTime);
+                
+                // Ana gain node (ses yükseltici)
                 gainNode = audioContext.createGain();
                 gainNode.gain.setValueAtTime(parseFloat(volumeSlider.value), audioContext.currentTime);
                 
                 // Analyser (görselleştirme için)
                 analyser = audioContext.createAnalyser();
-                analyser.fftSize = 256;
-                analyser.smoothingTimeConstant = 0.8;
+                analyser.fftSize = 2048;
+                analyser.smoothingTimeConstant = 0.85;
+                analyser.minDecibels = -90;
+                analyser.maxDecibels = -10;
                 
-                // Kompresör ekle (ses kalitesini iyileştirmek için)
-                const compressor = audioContext.createDynamicsCompressor();
-                compressor.threshold.setValueAtTime(-50, audioContext.currentTime);
-                compressor.knee.setValueAtTime(40, audioContext.currentTime);
-                compressor.ratio.setValueAtTime(12, audioContext.currentTime);
-                compressor.attack.setValueAtTime(0, audioContext.currentTime);
-                compressor.release.setValueAtTime(0.25, audioContext.currentTime);
-                
-                // Bağlantıları kur
-                source.connect(gainNode);
-                gainNode.connect(compressor);
-                compressor.connect(analyser);
-                compressor.connect(audioContext.destination);
+                // Ses işleme zincirini bağla
+                source.connect(preAmp);
+                preAmp.connect(bassBoost);
+                bassBoost.connect(midBoost);
+                midBoost.connect(trebleBoost);
+                trebleBoost.connect(compressor);
+                compressor.connect(gainNode);
+                gainNode.connect(limiter);
+                limiter.connect(analyser);
+                limiter.connect(audioContext.destination);
                 
                 console.log('Audio zinciri kuruldu. Sample rate:', audioContext.sampleRate);
                 console.log('Audio context state:', audioContext.state);
@@ -790,14 +847,22 @@
                 
                 // Ortalama ses seviyesini hesapla
                 let sum = 0;
+                let maxLevel = 0;
                 for (let i = 0; i < bufferLength; i++) {
                     sum += dataArray[i];
+                    if (dataArray[i] > maxLevel) {
+                        maxLevel = dataArray[i];
+                    }
                 }
                 const average = sum / bufferLength;
                 
-                // Ses seviyesi çok düşükse uyar
+                // Ses seviyesi bilgisi
                 if (average < 1) {
-                    console.log('Dikkat: Ses seviyesi çok düşük veya ses algılanmıyor');
+                    console.log('Ses seviyesi: Çok düşük (Ortalama:', average.toFixed(2), ', Max:', maxLevel, ')');
+                } else if (average < 10) {
+                    console.log('Ses seviyesi: Düşük (Ortalama:', average.toFixed(2), ', Max:', maxLevel, ')');
+                } else {
+                    console.log('Ses seviyesi: Normal (Ortalama:', average.toFixed(2), ', Max:', maxLevel, ')');
                 }
                 
                 setTimeout(check, 1000); // Her saniye kontrol et
@@ -832,6 +897,10 @@
             source = null;
             gainNode = null;
             analyser = null;
+            compressor = null;
+            bassBoost = null;
+            trebleBoost = null;
+            preAmp = null;
             isListening = false;
             isMuted = false;
             
