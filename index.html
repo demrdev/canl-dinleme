@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="Profesyonel canlı dinleme ve ses amplifikasyon uygulaması. iPhone Live Listen alternatifi.">
+    <title>Canlı Dinleme Pro - Mobil</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            padding: 15px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            font-size: 24px;
+            color: #1a1a1a;
+            text-align: center;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .quick-start {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .quick-start h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        .big-button {
+            background: white;
+            color: #059669;
+            border: none;
+            padding: 18px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+        
+        .big-button:active {
+            transform: scale(0.98);
+        }
+        
+        .permission-card {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .permission-card.success {
+            background: #dcfce7;
+            border-color: #22c55e;
+        }
+        
+        .permission-card.error {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+        
+        .permission-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .control-section {
+            background: #f3f4f6;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .control-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .control-btn {
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s;
+            color: white;
+        }
+        
+        .control-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+        
+        .start-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            grid-column: span 2;
+        }
+        
+        .stop-btn {
+            background: #ef4444;
+        }
+        
+        .mute-btn {
+            background: #f59e0b;
+        }
+        
+        .control-btn:disabled {
+            opacity: 0.5;
+        }
+        
+        .volume-section {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .volume-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .volume-label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 16px;
+        }
+        
+        .volume-value {
+            font-size: 22px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .volume-slider {
+            width: 100%;
+            height: 40px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            outline: none;
+        }
+        
+        .volume-slider::-webkit-slider-track {
+            width: 100%;
+            height: 10px;
+            background: #e5e7eb;
+            border-radius: 5px;
+        }
+        
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 30px;
+            height: 30px;
+            background: #667eea;
+            border-radius: 50%;
+            cursor: pointer;
+            margin-top: -10px;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .status-bar {
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .status-idle {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+        
+        .status-active {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .visualizer {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+            height: 120px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .help-section {
+            background: #eff6ff;
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .help-title {
+            font-weight: bold;
+            color: #1e40af;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .help-steps {
+            list-style: none;
+        }
+        
+        .help-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            color: #1e40af;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .help-step-icon {
+            background: #3b82f6;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        
+        .browser-specific {
+            display: none;
+            background: #f0f9ff;
+            border: 1px solid #0284c7;
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 15px;
+        }
+        
+        .browser-specific.show {
+            display: block;
+        }
+        
+        .live-badge {
+            display: inline-block;
+            background: #ef4444;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+            text-transform: uppercase;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .loading-overlay.show {
+            display: flex;
+        }
+        
+        .loading-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 400px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+            
+            .control-btn {
+                font-size: 14px;
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div>Mikrofon hazırlanıyor...</div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h1>
+            <span>🎧</span>
+            <span>Canlı Dinleme</span>
+            <span class="live-badge" id="liveBadge" style="display: none;">CANLI</span>
+        </h1>
+        
+        <div class="quick-start">
+            <h2>🚀 Hızlı Başlangıç</h2>
+            <button class="big-button" onclick="quickStart()">
+                <span>🎤</span>
+                <span>Mikrofonu Aç ve Başla</span>
+            </button>
+        </div>
+        
+        <div class="permission-card" id="permissionCard">
+            <div class="permission-title">
+                <span>⚠️</span>
+                <span>Mikrofon İzni Gerekli</span>
+            </div>
+            <div id="permissionText">
+                Uygulamayı kullanmak için mikrofon izni verin
+            </div>
+        </div>
+        
+        <div class="status-bar status-idle" id="statusBar">
+            🔌 Başlamak için yukarıdaki butona tıklayın
+        </div>
+        
+        <div class="control-section">
+            <div class="control-buttons">
+                <button class="control-btn start-btn" id="startBtn" onclick="startListening()" disabled>
+                    <span>▶️</span>
+                    <span>Dinlemeyi Başlat</span>
+                </button>
+                <button class="control-btn stop-btn" id="stopBtn" onclick="stopListening()" disabled>
+                    <span>⏹️</span>
+                    <span>Durdur</span>
+                </button>
+                <button class="control-btn mute-btn" id="muteBtn" onclick="toggleMute()" disabled>
+                    <span>🔇</span>
+                    <span>Sessiz</span>
+                </button>
+            </div>
+            
+            <div class="volume-section">
+                <div class="volume-header">
+                    <span class="volume-label">🔊 Ses Güçlendirme</span>
+                    <span class="volume-value" id="volumeValue">5x</span>
+                </div>
+                <input type="range" class="volume-slider" id="volumeSlider" 
+                       min="1" max="20" value="5" step="0.5"
+                       oninput="updateVolume(this.value)">
+            </div>
+        </div>
+        
+        <div class="visualizer">
+            <canvas id="visualizer"></canvas>
+        </div>
+        
+        <div class="browser-specific" id="browserHelp">
+            <!-- Browser özel yardım içeriği buraya gelecek -->
+        </div>
+        
+        <div class="help-section">
+            <div class="help-title">📱 Mobil Kullanım Kılavuzu</div>
+            <ul class="help-steps">
+                <li class="help-step">
+                    <span class="help-step-icon">1</span>
+                    <span><strong>Hızlı Başlat</strong> butonuna tıklayın</span>
+                </li>
+                <li class="help-step">
+                    <span class="help-step-icon">2</span>
+                    <span>Mikrofon iznini <strong>"İzin Ver"</strong> seçerek onaylayın</span>
+                </li>
+                <li class="help-step">
+                    <span class="help-step-icon">3</span>
+                    <span><strong>Kulaklık takın</strong> (geri beslemeyi önler)</span>
+                </li>
+                <li class="help-step">
+                    <span class="help-step-icon">4</span>
+                    <span>Ses seviyesini kaydırıcıdan ayarlayın</span>
+                </li>
+            </ul>
+            
+            <div style="margin-top: 15px; padding: 12px; background: #fef3c7; border-radius: 8px;">
+                <strong style="color: #92400e;">⚠️ Önemli:</strong>
+                <div style="color: #92400e; font-size: 13px; margin-top: 5px;">
+                    • Geri beslemeyi önlemek için mutlaka kulaklık kullanın<br>
+                    • Mikrofon izni bir kez verildiğinde kaydedilir<br>
+                    • Ses 1x-20x arası güçlendirilebilir
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Global değişkenler
+        let audioContext = null;
+        let source = null;
+        let gainNode = null;
+        let analyser = null;
+        let stream = null;
+        let animationId = null;
+        let isMuted = false;
+        let isListening = false;
+        
+        // DOM elementleri
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const muteBtn = document.getElementById('muteBtn');
+        const statusBar = document.getElementById('statusBar');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeValue = document.getElementById('volumeValue');
+        const liveBadge = document.getElementById('liveBadge');
+        const permissionCard = document.getElementById('permissionCard');
+        const permissionText = document.getElementById('permissionText');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const canvas = document.getElementById('visualizer');
+        const canvasCtx = canvas.getContext('2d');
+        
+        // Tarayıcı algılama
+        function detectBrowser() {
+            const ua = navigator.userAgent.toLowerCase();
+            if (ua.includes('chrome') && !ua.includes('edg')) return 'chrome';
+            if (ua.includes('safari') && !ua.includes('chrome')) return 'safari';
+            if (ua.includes('firefox')) return 'firefox';
+            if (ua.includes('edg')) return 'edge';
+            if (ua.includes('samsung')) return 'samsung';
+            return 'other';
+        }
+        
+        // Mobil cihaz kontrolü
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+        
+        // iOS kontrolü
+        function isIOS() {
+            return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        }
+        
+        // Tarayıcıya özel yardım göster
+        function showBrowserHelp() {
+            const browser = detectBrowser();
+            const browserHelp = document.getElementById('browserHelp');
+            let helpContent = '';
+            
+            if (browser === 'safari' && isIOS()) {
+                helpContent = `
+                    <strong>📱 Safari (iOS) İçin:</strong><br>
+                    1. Ayarlar → Safari → Kamera ve Mikrofon Erişimi<br>
+                    2. "Sor" veya "İzin Ver" seçin<br>
+                    3. Sayfayı yenileyin ve tekrar deneyin
+                `;
+            } else if (browser === 'chrome' && isMobile()) {
+                helpContent = `
+                    <strong>📱 Chrome (Android) İçin:</strong><br>
+                    1. Adres çubuğundaki kilit simgesine dokunun<br>
+                    2. Site ayarları → Mikrofon → İzin ver<br>
+                    3. Sayfayı yenileyin
+                `;
+            }
+            
+            if (helpContent) {
+                browserHelp.innerHTML = helpContent;
+                browserHelp.classList.add('show');
+            }
+        }
+        
+        // Canvas boyutlandırma
+        function setupCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            canvasCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+        
+        // Hızlı başlangıç
+        async function quickStart() {
+            showLoading(true);
+            
+            try {
+                // Önce izin iste
+                await requestMicrophonePermission();
+                
+                // İzin verildiyse dinlemeyi başlat
+                if (startBtn.disabled === false) {
+                    await startListening();
+                }
+            } catch (error) {
+                console.error('Hızlı başlangıç hatası:', error);
+                showError('Başlatma hatası: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Mikrofon izni isteme
+        async function requestMicrophonePermission() {
+            try {
+                updateStatus('🎤 Mikrofon izni isteniyor...', 'idle');
+                
+                // iOS için özel kontrol
+                if (isIOS()) {
+                    // iOS'ta getUserMedia direkt çağrılmalı
+                    const testStream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: true,
+                        video: false 
+                    });
+                    
+                    testStream.getTracks().forEach(track => track.stop());
+                    
+                    showPermissionSuccess();
+                    return;
+                }
+                
+                // Diğer platformlar için
+                const constraints = {
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    },
+                    video: false
+                };
+                
+                const testStream = await navigator.mediaDevices.getUserMedia(constraints);
+                testStream.getTracks().forEach(track => track.stop());
+                
+                showPermissionSuccess();
+                
+            } catch (error) {
+                console.error('Mikrofon izni hatası:', error);
+                handlePermissionError(error);
+                showBrowserHelp();
+                throw error;
+            }
+        }
+        
+        // İzin başarılı
+        function showPermissionSuccess() {
+            permissionCard.className = 'permission-card success';
+            permissionText.innerHTML = '<strong>✅ Mikrofon izni verildi!</strong><br>Artık dinlemeyi başlatabilirsiniz.';
+            startBtn.disabled = false;
+            updateStatus('✅ Hazır - Dinlemeyi başlatın', 'idle');
+        }
+        
+        // İzin hatası
+        function handlePermissionError(error) {
+            permissionCard.className = 'permission-card error';
+            
+            if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                permissionText.innerHTML = '<strong>❌ İzin reddedildi</strong><br>Tarayıcı ayarlarından mikrofon iznini verin';
+            } else if (error.name === 'NotFoundError') {
+                permissionText.innerHTML = '<strong>❌ Mikrofon bulunamadı</strong><br>Cihazınızda mikrofon var mı?';
+            } else if (error.name === 'NotReadableError') {
+                permissionText.innerHTML = '<strong>❌ Mikrofon kullanımda</strong><br>Başka uygulamaları kapatın';
+            } else {
+                permissionText.innerHTML = '<strong>❌ Hata:</strong> ' + error.message;
+            }
+        }
+        
+        // Dinlemeyi başlat
+        async function startListening() {
+            if (isListening) return;
+            
+            try {
+                showLoading(true);
+                updateStatus('🎤 Mikrofon başlatılıyor...', 'idle');
+                
+                // Audio context oluştur
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioContext();
+                
+                // iOS için resume gerekebilir
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+                
+                // Mikrofon stream'i al
+                const constraints = {
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                        sampleRate: 44100
+                    },
+                    video: false
+                };
+                
+                // iOS için basitleştirilmiş constraints
+                if (isIOS()) {
+                    stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: true,
+                        video: false 
+                    });
+                } else {
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                }
+                
+                // Audio zinciri kur
+                source = audioContext.createMediaStreamSource(stream);
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = volumeSlider.value;
+                
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                analyser.smoothingTimeConstant = 0.8;
+                
+                source.connect(gainNode);
+                gainNode.connect(analyser);
+                gainNode.connect(audioContext.destination);
+                
+                // UI güncelle
+                isListening = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                muteBtn.disabled = false;
+                liveBadge.style.display = 'inline-block';
+                
+                updateStatus('🎧 Canlı dinleme aktif', 'active');
+                
+                // Görselleştirmeyi başlat
+                visualize();
+                
+            } catch (error) {
+                console.error('Dinleme başlatma hatası:', error);
+                showError('Başlatma hatası: ' + error.message);
+                
+                if (audioContext) {
+                    audioContext.close();
+                    audioContext = null;
+                }
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Dinlemeyi durdur
+        function stopListening() {
+            if (!isListening) return;
+            
+            // Animasyonu durdur
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            // Stream'i durdur
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            // Audio context'i kapat
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            
+            // Değişkenleri sıfırla
+            source = null;
+            gainNode = null;
+            analyser = null;
+            isListening = false;
+            isMuted = false;
+            
+            // UI güncelle
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            muteBtn.disabled = true;
+            liveBadge.style.display = 'none';
+            muteBtn.innerHTML = '<span>🔇</span><span>Sessiz</span>';
+            
+            updateStatus('⏹️ Dinleme durduruldu', 'idle');
+            
+            // Canvas'ı temizle
+            canvasCtx.fillStyle = '#1e293b';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        // Sessiz modu değiştir
+        function toggleMute() {
+            if (!gainNode) return;
+            
+            isMuted = !isMuted;
+            
+            if (isMuted) {
+                gainNode.gain.value = 0;
+                muteBtn.innerHTML = '<span>🔊</span><span>Sesi Aç</span>';
+                updateStatus('🔇 Ses kapatıldı', 'active');
+            } else {
+                gainNode.gain.value = volumeSlider.value;
+                muteBtn.innerHTML = '<span>🔇</span><span>Sessiz</span>';
+                updateStatus('🎧 Canlı dinleme aktif', 'active');
+            }
+        }
+        
+        // Ses seviyesi güncelleme
+        function updateVolume(value) {
+            volumeValue.textContent = value + 'x';
+            if (gainNode && !isMuted) {
+                gainNode.gain.value = value;
+            }
+        }
+        
+        // Görselleştirme
+        function visualize() {
+            if (!analyser) return;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            function draw() {
+                if (!isListening) return;
+                
+                animationId = requestAnimationFrame(draw);
+                
+                analyser.getByteFrequencyData(dataArray);
+                
+                const width = canvas.width / window.devicePixelRatio;
+                const height = canvas.height / window.devicePixelRatio;
+                
+                // Arka plan
+                canvasCtx.fillStyle = '#1e293b';
+                canvasCtx.fillRect(0, 0, width, height);
+                
+                // Frekans çubukları
+                const barWidth = (width / bufferLength) * 2.5;
+                let x = 0;
+                
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * height;
+                    
+                    const hue = (i / bufferLength) * 120 + 200;
+                    const lightness = 50 + (dataArray[i] / 255) * 30;
+                    canvasCtx.fillStyle = `hsl(${hue}, 80%, ${lightness}%)`;
+                    
+                    canvasCtx.fillRect(x, height - barHeight, barWidth, barHeight);
+                    x += barWidth + 1;
+                    
+                    if (x > width) break;
+                }
+            }
+            
+            draw();
+        }
+        
+        // Yardımcı fonksiyonlar
+        function updateStatus(text, type) {
+            statusBar.textContent = text;
+            statusBar.className = 'status-bar status-' + type;
+        }
+        
+        function showLoading(show) {
+            if (show) {
+                loadingOverlay.classList.add('show');
+            } else {
+                loadingOverlay.classList.remove('show');
+            }
+        }
+        
+        function showError(message) {
+            updateStatus('❌ ' + message, 'error');
+        }
+        
+        // Sayfa yüklendiğinde
+        window.addEventListener('DOMContentLoaded', () => {
+            setupCanvas();
+            
+            // Tarayıcı uyumluluğu kontrolü
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                permissionCard.className = 'permission-card error';
+                permissionText.innerHTML = '<strong>❌ Desteklenmiyor</strong><br>Tarayıcınız mikrofon erişimini desteklemiyor';
+                return;
+            }
+            
+            // Mobil cihaz bilgisi
+            if (isMobile()) {
+                console.log('Mobil cihaz algılandı:', detectBrowser());
+            }
+            
+            // iOS için özel işlem
+            if (isIOS()) {
+                // iOS'ta dokunma ile audio context başlatma gerekebilir
+                document.addEventListener('touchstart', function() {
+                    if (audioContext && audioContext.state === 'suspended') {
+                        audioContext.resume();
+                    }
+                }, { once: true });
+            }
+        });
+        
+        // Sayfa gizlendiğinde
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isListening) {
+                console.log('Sayfa arka plana alındı');
+                // İsteğe bağlı: Arka planda durdur
+                // stopListening();
+            }
+        });
+        
+        // Sayfa kapanırken temizlik
+        window.addEventListener('beforeunload', () => {
+            if (isListening) {
+                stopListening();
+            }
+        });
+        
+        // Resize event
+        window.addEventListener('resize', setupCanvas);
+    </script>
+</body>
+</html>
