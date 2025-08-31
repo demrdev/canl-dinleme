@@ -2,7 +2,7 @@
   "name": "Kalp Dinleme (Eğitsel)",
   "short_name": "Kalp Dinleme",
   "description": "Sadece kalp atışı dinleme ve BPM analizi (eğitsel).",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#667eea",
   "theme_color": "#667eea",
