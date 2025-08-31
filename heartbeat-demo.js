@@ -28,14 +28,19 @@ class HeartbeatDetectionDemo {
         this.detectedBeats = [];
         this.bpmHistory = [];
         this.confidenceScore = 0;
+
+        // Peak consolidation parameters (merge S1-S2 into one beat)
+        this.minBeatSeparationSec = 0.08; // 80 ms
+        this.maxBeatSeparationSec = 0.20; // 200 ms
     }
     
     // EDUCATIONAL DEMO - Rhythm Detection Algorithm
     detectRhythmicPatterns(audioData) {
         // This is a simplified educational demonstration
         // Real medical devices use specialized hardware and algorithms
-        
-        const peaks = this.findPeaks(audioData);
+
+        const rawPeaks = this.findPeaks(audioData);
+        const peaks = this.consolidateBeats(rawPeaks);
         const intervals = this.calculateIntervals(peaks);
         const bpm = this.calculateBPM(intervals);
         
@@ -45,6 +50,35 @@ class HeartbeatDetectionDemo {
             type: this.classifyHeartRate(bpm),
             warning: "DEMO ONLY - Not for medical use"
         };
+    }
+
+    // Merge closely spaced peak pairs (S1/S2) into single beats
+    consolidateBeats(peaks) {
+        if (!peaks || peaks.length === 0) return [];
+
+        const minSep = this.minBeatSeparationSec;
+        const maxSep = this.maxBeatSeparationSec;
+        const consolidated = [];
+
+        let i = 0;
+        while (i < peaks.length) {
+            const p = peaks[i];
+            // Look ahead to see if there's a close pair (S1-S2)
+            if (i + 1 < peaks.length) {
+                const next = peaks[i + 1];
+                const dt = next.time - p.time;
+                if (dt >= minSep && dt <= maxSep) {
+                    // Treat as one beat at the stronger of the two
+                    const stronger = next.value > p.value ? next : p;
+                    consolidated.push(stronger);
+                    i += 2;
+                    continue;
+                }
+            }
+            consolidated.push(p);
+            i += 1;
+        }
+        return consolidated;
     }
     
     // Find peaks in audio signal (simplified for demo)
@@ -161,49 +195,64 @@ class HeartbeatDetectionDemo {
         }
     }
     
-    // Enhanced low-frequency filter for heartbeat sounds
+    // Enhanced low-frequency filter for heartbeat sounds (tuned for fetal)
     createHeartbeatFilter(audioContext, sourceNode) {
-        // Multiple bandpass filters for different heart sound components
+        // Multiple bandpass filters for heart sound components
         const filters = [];
-        
-        // S1 sound (lub) - 30-45 Hz
+
+        // Fetal S1 emphasis ~60-90 Hz (phone mics roll off <50Hz)
         const s1Filter = audioContext.createBiquadFilter();
         s1Filter.type = 'bandpass';
-        s1Filter.frequency.value = 37;
-        s1Filter.Q.value = 5;
-        
-        // S2 sound (dub) - 50-70 Hz
+        s1Filter.frequency.value = 75;
+        s1Filter.Q.value = 3.5;
+
+        // Fetal S2 emphasis ~90-120 Hz
         const s2Filter = audioContext.createBiquadFilter();
         s2Filter.type = 'bandpass';
-        s2Filter.frequency.value = 60;
-        s2Filter.Q.value = 5;
-        
+        s2Filter.frequency.value = 105;
+        s2Filter.Q.value = 3.5;
+
+        // Optional third band to catch higher components ~130-160 Hz
+        const s3Filter = audioContext.createBiquadFilter();
+        s3Filter.type = 'bandpass';
+        s3Filter.frequency.value = 140;
+        s3Filter.Q.value = 3.0;
+
         // Low frequency enhancement
         const lowShelf = audioContext.createBiquadFilter();
         lowShelf.type = 'lowshelf';
         lowShelf.frequency.value = 200;
-        lowShelf.gain.value = 12;
-        
+        lowShelf.gain.value = 9;
+
         // High frequency suppression
         const highShelf = audioContext.createBiquadFilter();
         highShelf.type = 'highshelf';
         highShelf.frequency.value = 500;
         highShelf.gain.value = -12;
-        
+
+        // Narrow 50 Hz notch (mains hum) – keep very narrow to preserve S2
+        const notch50 = audioContext.createBiquadFilter();
+        notch50.type = 'notch';
+        notch50.frequency.value = 50;
+        notch50.Q.value = 25;
+
         // Connect filters in parallel and sum
-        const merger = audioContext.createChannelMerger(2);
+        const merger = audioContext.createChannelMerger(3);
         sourceNode.connect(s1Filter);
         sourceNode.connect(s2Filter);
+        sourceNode.connect(s3Filter);
         s1Filter.connect(merger, 0, 0);
         s2Filter.connect(merger, 0, 1);
-        
+        s3Filter.connect(merger, 0, 2);
+
         const gainNode = audioContext.createGain();
-        gainNode.gain.value = 50; // High amplification for weak signals
-        
-        merger.connect(lowShelf);
+        gainNode.gain.value = 20; // High but safer amplification
+
+        merger.connect(notch50);
+        notch50.connect(lowShelf);
         lowShelf.connect(highShelf);
         highShelf.connect(gainNode);
-        
+
         return gainNode;
     }
     

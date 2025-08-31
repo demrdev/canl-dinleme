@@ -1,7 +1,7 @@
 {
-  "name": "Canlı Dinleme Pro - Gelişmiş Ses Sistemi",
-  "short_name": "Canlı Dinleme",
-  "description": "Gelişmiş canlı dinleme ve ses odaklama sistemi. AI destekli ses izolasyonu, çoklu mod desteği.",
+  "name": "Kalp Dinleme (Eğitsel)",
+  "short_name": "Kalp Dinleme",
+  "description": "Sadece kalp atışı dinleme ve BPM analizi (eğitsel).",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#667eea",
