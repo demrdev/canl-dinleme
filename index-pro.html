@@ -886,6 +886,14 @@
                            min="1" max="50" value="5" step="0.5"
                            oninput="updateVolume(this.value)">
                 </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-top:10px;">
+                    <span class="volume-label"><span>🎚️</span><span>Hassasiyet (Ön Kazanç)</span></span>
+                    <span class="volume-value" id="preampLabel">8x</span>
+                </div>
+                <div class="slider-container">
+                    <input type="range" class="volume-slider" id="preampSlider"
+                           min="1" max="16" value="8" step="0.5">
+                </div>
                 <div style="display:flex; gap:10px; margin-top:10px; align-items:center;">
                     <label class="toggle-switch">
                         <input type="checkbox" id="autoGainToggle">
@@ -1174,7 +1182,11 @@
         async function initializeAudioSystem() {
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioContext = new AudioContext();
+                const lowLat = document.getElementById('lowLatencyToggle') ? document.getElementById('lowLatencyToggle').checked : true;
+                audioContext = new AudioContext({
+                    latencyHint: lowLat ? 'interactive' : 'playback',
+                    sampleRate: lowLat ? 48000 : undefined
+                });
                 
                 // Check if context is suspended (iOS requirement)
                 if (audioContext.state === 'suspended') {
@@ -1394,7 +1406,8 @@
 
             // Preamp for ultra sensitivity (before any processing)
             preampGain = audioContext.createGain();
-            preampGain.gain.value = features.ultraSensitivity ? 8 : 1; // 8x preamp when ultra
+            const preampVal = parseFloat(document.getElementById('preampSlider') ? document.getElementById('preampSlider').value : '8') || 8;
+            preampGain.gain.value = features.ultraSensitivity ? preampVal : 1; // configurable preamp when ultra
             currentNode.connect(preampGain);
             currentNode = preampGain;
             
@@ -1485,7 +1498,9 @@
             
             // Analyser
             analyser = audioContext.createAnalyser();
-            analyser.fftSize = document.getElementById('batterySaverToggle').checked ? 1024 : 2048;
+            const lowLat = document.getElementById('lowLatencyToggle').checked;
+            const saveBatt = document.getElementById('batterySaverToggle').checked;
+            analyser.fftSize = saveBatt ? 1024 : (lowLat ? 512 : 2048);
             analyser.smoothingTimeConstant = 0.8;
             gainNode.connect(analyser);
             
@@ -1845,7 +1860,8 @@
         
         document.getElementById('batterySaverToggle').addEventListener('change', (e) => {
             if (analyser) {
-                analyser.fftSize = e.target.checked ? 1024 : 2048;
+                const lowLat = document.getElementById('lowLatencyToggle').checked;
+                analyser.fftSize = e.target.checked ? 1024 : (lowLat ? 512 : 2048);
             }
         });
 
@@ -1861,7 +1877,8 @@
                 noiseSuppression: false,
                 autoGainControl: false,
                 sampleRate: 48000,
-                channelCount: 1
+                channelCount: 1,
+                latency: 0
             };
             if (selectedDeviceId) audio.deviceId = { exact: selectedDeviceId };
             return { audio };
@@ -1928,6 +1945,21 @@
                         audioContext.resume();
                     }
                 }, { once: true });
+            }
+
+            // Preamp slider live label + reconfigure
+            const preamp = document.getElementById('preampSlider');
+            if (preamp) {
+                const lbl = document.getElementById('preampLabel');
+                const updateLbl = () => { lbl.textContent = preamp.value + 'x'; };
+                preamp.addEventListener('input', () => {
+                    updateLbl();
+                    if (isListening && preampGain) {
+                        const val = parseFloat(preamp.value) || 1;
+                        preampGain.gain.setValueAtTime(features.ultraSensitivity ? val : 1, audioContext.currentTime);
+                    }
+                });
+                updateLbl();
             }
         });
         
