@@ -806,6 +806,11 @@
         <div class="advanced-panel" id="advancedPanel">
             <h3 style="margin-bottom: 10px; color: #1f2937;">🎯 Ses Odaklama Özellikleri</h3>
             <div class="feature-grid">
+                <div class="feature-card" id="ultraSensitivity" onclick="toggleFeature('ultraSensitivity')">
+                    <div class="feature-icon">🛰️</div>
+                    <div class="feature-name">Ultra Duyarlılık</div>
+                    <div class="feature-desc">En kısık sesleri yakala (limitör ile)</div>
+                </div>
                 <div class="feature-card" id="voiceIsolation" onclick="toggleFeature('voiceIsolation')">
                     <div class="feature-icon">🎯</div>
                     <div class="feature-name">Ses İzolasyonu</div>
@@ -878,8 +883,20 @@
                 </div>
                 <div class="slider-container">
                     <input type="range" class="volume-slider" id="volumeSlider" 
-                           min="1" max="20" value="5" step="0.5"
+                           min="1" max="50" value="5" step="0.5"
                            oninput="updateVolume(this.value)">
+                </div>
+                <div style="display:flex; gap:10px; margin-top:10px; align-items:center;">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoGainToggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="control-label">Otomatik Kazanç (AGC)</div>
+                    <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+                        <div class="control-label">Mikrofon</div>
+                        <select id="micSelect" style="padding:8px; border-radius:8px; border:1px solid #e5e7eb;"></select>
+                        <button onclick="refreshMics()" style="padding:8px 10px; border-radius:8px; border:1px solid #e5e7eb; background:#fff;">🔄</button>
+                    </div>
                 </div>
             </div>
             
@@ -995,6 +1012,10 @@
         let lowShelfFilter = null;
         let highShelfFilter = null;
         let bandpassFilter = null;
+        let preampGain = null;
+        let dcBlocker = null;
+        let limiter = null;
+        let agcTimer = null;
         let spectralProcessor = null;
         
         // Feature States
@@ -1002,7 +1023,8 @@
             voiceIsolation: false,
             noiseReduction: false,
             speechEnhance: false,
-            directionFocus: false
+            directionFocus: false,
+            ultraSensitivity: false
         };
         
         // Audio Processing Configuration
@@ -1261,7 +1283,7 @@
             if (isListening && audioContext) {
                 reconfigureAudioChain();
             }
-            
+
             updateStatus(`⚙️ ${getFeatureDisplayName(featureName)}: ${features[featureName] ? 'Açık' : 'Kapalı'}`, 'warning');
         }
         
@@ -1271,7 +1293,8 @@
                 voiceIsolation: 'Ses İzolasyonu',
                 noiseReduction: 'Gürültü Azaltma',
                 speechEnhance: 'Konuşma Netleştirme',
-                directionFocus: 'Yön Odaklama'
+                directionFocus: 'Yön Odaklama',
+                ultraSensitivity: 'Ultra Duyarlılık'
             };
             return names[feature] || feature;
         }
@@ -1306,23 +1329,14 @@
         async function requestMicrophonePermission() {
             try {
                 updateStatus('🎤 Mikrofon izni isteniyor...', 'warning');
-                
-                const constraints = {
-                    audio: {
-                        echoCancellation: false,
-                        noiseSuppression: false,
-                        autoGainControl: false,
-                        sampleRate: 48000,
-                        channelCount: 2
-                    }
-                };
-                
+                const constraints = buildConstraints();
                 // Test microphone access
                 const testStream = await navigator.mediaDevices.getUserMedia(constraints);
                 testStream.getTracks().forEach(track => track.stop());
                 
                 // Permission granted
                 showPermissionSuccess();
+                populateMics();
                 
             } catch (error) {
                 console.error('Microphone permission error:', error);
@@ -1368,8 +1382,21 @@
         // Setup Audio Chain
         function setupAudioChain() {
             if (!audioContext || !source) return;
-            
+
             let currentNode = source;
+
+            // DC blocker to remove offset / subsonic
+            dcBlocker = audioContext.createBiquadFilter();
+            dcBlocker.type = 'highpass';
+            dcBlocker.frequency.setValueAtTime(18, audioContext.currentTime);
+            currentNode.connect(dcBlocker);
+            currentNode = dcBlocker;
+
+            // Preamp for ultra sensitivity (before any processing)
+            preampGain = audioContext.createGain();
+            preampGain.gain.value = features.ultraSensitivity ? 8 : 1; // 8x preamp when ultra
+            currentNode.connect(preampGain);
+            currentNode = preampGain;
             
             // Voice Isolation (if enabled)
             if (features.voiceIsolation) {
@@ -1428,7 +1455,7 @@
                 currentNode = noiseGate;
             }
             
-            // Compressor
+            // Compressor (main)
             if (document.getElementById('compressorToggle').checked) {
                 compressor = audioContext.createDynamicsCompressor();
                 compressor.threshold.setValueAtTime(-20, audioContext.currentTime);
@@ -1436,10 +1463,20 @@
                 compressor.ratio.setValueAtTime(4, audioContext.currentTime);
                 compressor.attack.setValueAtTime(0.003, audioContext.currentTime);
                 compressor.release.setValueAtTime(0.1, audioContext.currentTime);
-                
+
                 currentNode.connect(compressor);
                 currentNode = compressor;
             }
+
+            // Limiter at the end to prevent clipping when ultra is enabled
+            limiter = audioContext.createDynamicsCompressor();
+            limiter.threshold.setValueAtTime(-3, audioContext.currentTime);
+            limiter.knee.setValueAtTime(0, audioContext.currentTime);
+            limiter.ratio.setValueAtTime(20, audioContext.currentTime);
+            limiter.attack.setValueAtTime(0.002, audioContext.currentTime);
+            limiter.release.setValueAtTime(0.1, audioContext.currentTime);
+            currentNode.connect(limiter);
+            currentNode = limiter;
             
             // Gain Node
             gainNode = audioContext.createGain();
@@ -1457,22 +1494,46 @@
             
             // Apply mode configuration
             applyModeConfiguration();
+
+            // Start/refresh AGC if enabled
+            if (agcTimer) { clearInterval(agcTimer); agcTimer = null; }
+            if (document.getElementById('autoGainToggle').checked) {
+                const target = 0.15; // target RMS
+                agcTimer = setInterval(() => {
+                    if (!analyser || !preampGain) return;
+                    const n = analyser.frequencyBinCount;
+                    const td = new Float32Array(n);
+                    analyser.getFloatTimeDomainData(td);
+                    let rms = 0;
+                    for (let i=0;i<td.length;i++) rms += td[i]*td[i];
+                    rms = Math.sqrt(rms / td.length);
+                    if (!isFinite(rms) || rms <= 1e-8) return;
+                    // adjust slowly
+                    const ratio = target / rms;
+                    const adj = Math.pow(ratio, 0.05); // small steps
+                    const newGain = Math.max(1, Math.min(20, preampGain.gain.value * adj));
+                    preampGain.gain.setValueAtTime(newGain, audioContext.currentTime);
+                }, 200);
+            }
         }
         
         // Reconfigure Audio Chain
         function reconfigureAudioChain() {
             if (!audioContext || !source) return;
-            
+
             // Disconnect all nodes
             source.disconnect();
+            if (dcBlocker) dcBlocker.disconnect();
+            if (preampGain) preampGain.disconnect();
             if (bandpassFilter) bandpassFilter.disconnect();
             if (lowShelfFilter) lowShelfFilter.disconnect();
             if (highShelfFilter) highShelfFilter.disconnect();
             if (noiseGate) noiseGate.disconnect();
             if (compressor) compressor.disconnect();
+            if (limiter) limiter.disconnect();
             if (gainNode) gainNode.disconnect();
             if (analyser) analyser.disconnect();
-            
+
             // Reconnect with new configuration
             setupAudioChain();
         }
@@ -1494,16 +1555,8 @@
                 }
                 
                 // Get microphone stream
-                const constraints = {
-                    audio: {
-                        echoCancellation: false,
-                        noiseSuppression: false,
-                        autoGainControl: false,
-                        sampleRate: document.getElementById('lowLatencyToggle').checked ? 48000 : 44100,
-                        channelCount: 2
-                    }
-                };
-                
+                const constraints = buildConstraints();
+
                 stream = await navigator.mediaDevices.getUserMedia(constraints);
                 
                 // Create source
@@ -1795,6 +1848,62 @@
                 analyser.fftSize = e.target.checked ? 1024 : 2048;
             }
         });
+
+        document.getElementById('autoGainToggle').addEventListener('change', () => {
+            if (isListening) reconfigureAudioChain();
+        });
+
+        // Mic selection helpers
+        let selectedDeviceId = null;
+        function buildConstraints() {
+            const audio = {
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false,
+                sampleRate: 48000,
+                channelCount: 1
+            };
+            if (selectedDeviceId) audio.deviceId = { exact: selectedDeviceId };
+            return { audio };
+        }
+
+        async function populateMics() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const inputs = devices.filter(d => d.kind === 'audioinput');
+                const sel = document.getElementById('micSelect');
+                if (!sel) return;
+                sel.innerHTML = '';
+                inputs.forEach((d, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = d.deviceId;
+                    opt.textContent = d.label || `Mikrofon ${i+1}`;
+                    sel.appendChild(opt);
+                });
+                sel.onchange = async () => {
+                    selectedDeviceId = sel.value || null;
+                    if (isListening) await switchMic();
+                };
+            } catch (e) { console.warn('Mikrofon listesi alınamadı', e); }
+        }
+
+        async function refreshMics() { await populateMics(); }
+
+        async function switchMic() {
+            if (!audioContext) return;
+            try {
+                const newStream = await navigator.mediaDevices.getUserMedia(buildConstraints());
+                if (stream) stream.getTracks().forEach(t=>t.stop());
+                stream = newStream;
+                source = audioContext.createMediaStreamSource(stream);
+                reconfigureAudioChain();
+            } catch (e) {
+                showError('Mikrofon değiştirilemedi: ' + e.message);
+            }
+        }
+
+        // After permission, load device labels
+        // (Duplicate quickStart removed)
         
         // Page Load
         window.addEventListener('DOMContentLoaded', () => {
