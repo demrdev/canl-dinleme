@@ -892,7 +892,7 @@
                 </div>
                 <div class="slider-container">
                     <input type="range" class="volume-slider" id="preampSlider"
-                           min="1" max="16" value="8" step="0.5">
+                           min="1" max="500" value="8" step="1">
                 </div>
                 <div style="display:flex; gap:10px; margin-top:10px; align-items:center;">
                     <label class="toggle-switch">
@@ -1483,10 +1483,10 @@
 
             // Limiter at the end to prevent clipping when ultra is enabled
             limiter = audioContext.createDynamicsCompressor();
-            limiter.threshold.setValueAtTime(-3, audioContext.currentTime);
+            limiter.threshold.setValueAtTime(-6, audioContext.currentTime);
             limiter.knee.setValueAtTime(0, audioContext.currentTime);
-            limiter.ratio.setValueAtTime(20, audioContext.currentTime);
-            limiter.attack.setValueAtTime(0.002, audioContext.currentTime);
+            limiter.ratio.setValueAtTime(30, audioContext.currentTime);
+            limiter.attack.setValueAtTime(0.001, audioContext.currentTime);
             limiter.release.setValueAtTime(0.1, audioContext.currentTime);
             currentNode.connect(limiter);
             currentNode = limiter;
@@ -1500,7 +1500,7 @@
             analyser = audioContext.createAnalyser();
             const lowLat = document.getElementById('lowLatencyToggle').checked;
             const saveBatt = document.getElementById('batterySaverToggle').checked;
-            analyser.fftSize = saveBatt ? 1024 : (lowLat ? 512 : 2048);
+            analyser.fftSize = saveBatt ? 1024 : (lowLat ? 256 : 2048);
             analyser.smoothingTimeConstant = 0.8;
             gainNode.connect(analyser);
             
@@ -1513,7 +1513,7 @@
             // Start/refresh AGC if enabled
             if (agcTimer) { clearInterval(agcTimer); agcTimer = null; }
             if (document.getElementById('autoGainToggle').checked) {
-                const target = 0.15; // target RMS
+                const target = 0.12; // target RMS (daha sessiz ortamlar için)
                 agcTimer = setInterval(() => {
                     if (!analyser || !preampGain) return;
                     const n = analyser.frequencyBinCount;
@@ -1526,8 +1526,8 @@
                     // adjust slowly
                     const ratio = target / rms;
                     const adj = Math.pow(ratio, 0.05); // small steps
-                    const newGain = Math.max(1, Math.min(20, preampGain.gain.value * adj));
-                    preampGain.gain.setValueAtTime(newGain, audioContext.currentTime);
+                    const newGain = Math.max(1, Math.min(500, preampGain.gain.value * adj));
+                preampGain.gain.setValueAtTime(newGain, audioContext.currentTime);
                 }, 200);
             }
         }
@@ -1861,7 +1861,7 @@
         document.getElementById('batterySaverToggle').addEventListener('change', (e) => {
             if (analyser) {
                 const lowLat = document.getElementById('lowLatencyToggle').checked;
-                analyser.fftSize = e.target.checked ? 1024 : (lowLat ? 512 : 2048);
+                analyser.fftSize = e.target.checked ? 1024 : (lowLat ? 256 : 2048);
             }
         });
 
