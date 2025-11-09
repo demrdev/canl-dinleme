@@ -487,7 +487,11 @@
             BRICK: 16,
             SNOW: 17,
             ICE: 18,
-            CLAY: 19
+            CLAY: 19,
+            // Food items
+            APPLE: 20,
+            BREAD: 21,
+            COOKED_MEAT: 22
         };
 
         const BlockColors = {
@@ -510,7 +514,10 @@
             [BlockType.BRICK]: 0xa0522d,
             [BlockType.SNOW]: 0xfafafa,
             [BlockType.ICE]: 0xd0e9f5,
-            [BlockType.CLAY]: 0xa0a0a0
+            [BlockType.CLAY]: 0xa0a0a0,
+            [BlockType.APPLE]: 0xff0000,
+            [BlockType.BREAD]: 0xf5deb3,
+            [BlockType.COOKED_MEAT]: 0x8b4513
         };
 
         const BlockNames = {
@@ -532,7 +539,10 @@
             [BlockType.BRICK]: 'Tuğla',
             [BlockType.SNOW]: 'Kar',
             [BlockType.ICE]: 'Buz',
-            [BlockType.CLAY]: 'Kil'
+            [BlockType.CLAY]: 'Kil',
+            [BlockType.APPLE]: 'Elma',
+            [BlockType.BREAD]: 'Ekmek',
+            [BlockType.COOKED_MEAT]: 'Pişmiş Et'
         };
 
         // ==================== CRAFTING RECIPES ====================
@@ -560,6 +570,14 @@
             {
                 pattern: [[3, 3, 3], [3, 3, 3], [0, 0, 0]], // STONE -> COBBLESTONE
                 result: { type: BlockType.COBBLESTONE, count: 6 }
+            },
+            {
+                pattern: [[9, 9, 9], [0, 0, 0], [0, 0, 0]], // PLANKS -> BREAD
+                result: { type: BlockType.BREAD, count: 1 }
+            },
+            {
+                pattern: [[5, 0, 0], [0, 0, 0], [0, 0, 0]], // LEAVES -> APPLE (simplified)
+                result: { type: BlockType.APPLE, count: 2 }
             }
         ];
 
@@ -681,6 +699,8 @@
                 this.mobs = [];
                 this.blockBreakProgress = 0;
                 this.targetBlock = null;
+                this.hungerTimer = 0;
+                this.healthRegenTimer = 0;
             }
 
             createDefaultInventory() {
@@ -698,6 +718,10 @@
                 inventory[6] = { type: BlockType.COBBLESTONE, count: 64 };
                 inventory[7] = { type: BlockType.SAND, count: 64 };
                 inventory[8] = { type: BlockType.BRICK, count: 64 };
+                // Add food items
+                inventory[9] = { type: BlockType.APPLE, count: 10 };
+                inventory[10] = { type: BlockType.BREAD, count: 5 };
+                inventory[11] = { type: BlockType.COOKED_MEAT, count: 5 };
                 return inventory;
             }
         }
@@ -1365,6 +1389,10 @@
 
                     hotbarDiv.appendChild(slot);
                 }
+
+                // Initialize displays
+                this.updateHealthDisplay();
+                this.updateHungerDisplay();
             }
 
             getBlockColor(blockType) {
@@ -1542,10 +1570,37 @@
 
                 if (e.button === 0) { // Left click - break block
                     this.breakBlock();
-                } else if (e.button === 2) { // Right click - place block
+                } else if (e.button === 2) { // Right click - place block or eat food
                     e.preventDefault();
-                    this.placeBlock();
+
+                    const selectedItem = this.state.player.inventory[this.state.player.selectedSlot];
+
+                    // Check if it's food
+                    const foodItems = [BlockType.APPLE, BlockType.BREAD, BlockType.COOKED_MEAT];
+                    if (foodItems.includes(selectedItem.type) && selectedItem.count > 0) {
+                        this.eatFood(selectedItem.type);
+                        selectedItem.count--;
+                        if (selectedItem.count === 0) {
+                            selectedItem.type = BlockType.AIR;
+                        }
+                        this.updateHotbar();
+                    } else {
+                        this.placeBlock();
+                    }
                 }
+            }
+
+            eatFood(foodType) {
+                let hungerRestore = 0;
+
+                switch(foodType) {
+                    case BlockType.APPLE: hungerRestore = 4; break;
+                    case BlockType.BREAD: hungerRestore = 6; break;
+                    case BlockType.COOKED_MEAT: hungerRestore = 8; break;
+                }
+
+                this.state.player.hunger = Math.min(20, this.state.player.hunger + hungerRestore);
+                this.updateHungerDisplay();
             }
 
             onMouseUp(e) {
@@ -2145,6 +2200,36 @@
                 }
             }
 
+            updateHungerSystem(deltaTime) {
+                // Hunger depletion
+                this.state.hungerTimer += deltaTime;
+                if (this.state.hungerTimer > 4) { // Lose hunger every 4 seconds
+                    this.state.hungerTimer = 0;
+                    this.state.player.hunger = Math.max(0, this.state.player.hunger - 1);
+                    this.updateHungerDisplay();
+                }
+
+                // Health regeneration when hunger > 18
+                if (this.state.player.hunger >= 18 && this.state.player.health < 20) {
+                    this.state.healthRegenTimer += deltaTime;
+                    if (this.state.healthRegenTimer > 4) {
+                        this.state.healthRegenTimer = 0;
+                        this.state.player.health = Math.min(20, this.state.player.health + 1);
+                        this.updateHealthDisplay();
+                    }
+                }
+
+                // Health loss when hunger = 0
+                if (this.state.player.hunger === 0) {
+                    this.state.healthRegenTimer += deltaTime;
+                    if (this.state.healthRegenTimer > 2) {
+                        this.state.healthRegenTimer = 0;
+                        this.state.player.health = Math.max(0, this.state.player.health - 1);
+                        this.updateHealthDisplay();
+                    }
+                }
+            }
+
             updateHealthDisplay() {
                 const hearts = document.querySelectorAll('.heart');
                 const health = this.state.player.health;
@@ -2161,9 +2246,24 @@
                 if (health <= 0) {
                     alert('Game Over! Respawning...');
                     this.state.player.health = 20;
+                    this.state.player.hunger = 20;
                     this.state.player.position.copy(new THREE.Vector3(0, WORLD_HEIGHT / 2 + 10, 0));
                     this.updateHealthDisplay();
+                    this.updateHungerDisplay();
                 }
+            }
+
+            updateHungerDisplay() {
+                const foodItems = document.querySelectorAll('.food-item');
+                const hunger = this.state.player.hunger;
+
+                foodItems.forEach((food, i) => {
+                    if (i < hunger / 2) {
+                        food.style.opacity = '1';
+                    } else {
+                        food.style.opacity = '0.2';
+                    }
+                });
             }
 
             update() {
@@ -2174,6 +2274,7 @@
                     this.updateTime();
                     this.updateChunks();
                     this.updateMobs(deltaTime);
+                    this.updateHungerSystem(deltaTime);
                 }
 
                 // Update UI
