@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0ea5e9">
+    <meta name="description" content="Kalp atışı dinleme (eğitsel) — mobil cihazlar için sade arayüz.">
+    <title>Kalp Dinleme (Eğitsel)</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="heartbeat-demo.js"></script>
+    <style>
+        :root {
+            --bg1: #0ea5e9; /* cyan-500 */
+            --bg2: #2563eb; /* blue-600 */
+            --card: rgba(255, 255, 255, 0.98);
+            --text: #0f172a;
+            --muted: #64748b;
+            --accent: #10b981; /* green-500 */
+            --danger: #ef4444;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', Roboto, system-ui;
+            background: linear-gradient(135deg, var(--bg1), var(--bg2)); min-height: 100vh;
+        }
+        .container { max-width: 640px; margin: 0 auto; background: var(--card); border-radius: 20px; padding: 18px; box-shadow: 0 16px 48px rgba(0,0,0,.25); }
+        h1 { margin: 0 0 6px; font-size: 22px; display: flex; align-items: center; gap: 8px; color: var(--text); }
+        .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+        .badge { display:inline-block; background: var(--danger); color:#fff; font-size:11px; border-radius:6px; padding:2px 6px; margin-left:6px; }
+        .cta { background: linear-gradient(135deg, #22c55e, #16a34a); color:#fff; width:100%; border:0; border-radius:12px; padding:14px; font-size:16px; font-weight:700; box-shadow: 0 10px 20px rgba(22,163,74,.25); }
+        .cta:active { transform: scale(.98); }
+        .row { display:flex; gap:10px; }
+        .btn { flex:1; border:0; border-radius:10px; padding:12px; color:#fff; font-weight:700; }
+        .btn.stop { background: var(--danger); }
+        .btn.mute { background: #f59e0b; }
+        .panel { background:#f8fafc; border-radius:14px; padding:14px; margin-top:14px; }
+        .label { font-size:14px; color:#334155; font-weight:600; }
+        .value { font-weight:800; color:#0ea5e9; }
+        .slider { width:100%; appearance:none; height: 32px; background:transparent; }
+        .slider::-webkit-slider-track { height:8px; background:#e2e8f0; border-radius:6px; }
+        .slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:26px; height:26px; background:#0ea5e9; border-radius:50%; margin-top:-9px; box-shadow:0 2px 6px rgba(14,165,233,.4); }
+        .status { padding:12px; text-align:center; border-radius:10px; margin-top:12px; font-weight:600; font-size:14px; }
+        .status.idle { background:#e2e8f0; color:#475569; }
+        .status.live { background:#dcfce7; color:#14532d; }
+        .warn { background: linear-gradient(135deg, #ef4444, #b91c1c); color:#fff; border-radius:14px; padding:14px; font-size:13px; }
+        canvas { width:100%; height:150px; background:#0f172a; border-radius:10px; display:block; }
+        small { color:#64748b; }
+        @media (prefers-color-scheme: dark) {
+            :root { --card: rgba(15, 23, 42, .96); --text: #e5e7eb; --muted:#94a3b8; }
+            body { background: linear-gradient(135deg, #0b162a, #0b1220); }
+            .panel { background: rgba(255,255,255,.06); }
+            .container { border:1px solid rgba(255,255,255,.08); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>❤️ Kalp Dinleme <span id="live" class="badge" style="display:none">CANLI</span></h1>
+        <div class="subtitle">Sadece kalp atışı dinleme ve BPM analizi (eğitsel)</div>
+
+        <div class="warn" id="demoWarn">
+            ⚠️ Bu uygulama yalnızca eğitim amaçlıdır. Tıbbi tanı/izleme için kullanılamaz. Geri beslemeyi önlemek için kulaklık kullanın.
+        </div>
+
+        <div class="panel">
+            <button id="start" class="cta" onclick="start()">🎤 Kalp Dinlemeyi Başlat</button>
+            <div class="row" style="margin-top:10px; gap:10px;">
+                <button id="stop" class="btn stop" onclick="stopAll()" disabled>⏹️ Durdur</button>
+                <button id="mute" class="btn mute" onclick="toggleMute()" disabled>🔇 Sessiz</button>
+            </div>
+
+            <div class="panel" style="margin-top:12px; display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:end;">
+                <div>
+                    <div class="label" style="margin-bottom:6px;">Mikrofon Seçimi</div>
+                    <select id="micSelect" style="width:100%; padding:10px; border-radius:10px; border:1px solid #e2e8f0; background:#fff; font-weight:600; color:#0f172a;"></select>
+                </div>
+                <button class="btn" style="background:#0ea5e9;" onclick="refreshMics()">🔄 Yenile</button>
+            </div>
+
+            <div class="panel" style="margin-top:12px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <span class="label">Ses Güçlendirme</span>
+                    <span class="value" id="gainLabel">10x</span>
+                </div>
+                <input id="gain" class="slider" type="range" min="1" max="50" step="1" value="10" oninput="updateGain(this.value)">
+                <div style="display:flex; gap:10px; align-items:center; margin-top:8px;">
+                    <label style="display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="safeCap" checked onchange="applySafeCap()"> 
+                        <span class="label">Güvenli üst limit (20x)</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+                        <input type="checkbox" id="useWorklet" checked> 
+                        <span class="label">Performans (AudioWorklet)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div style="text-align:center; background:#fff; border-radius:12px; padding:10px;">
+                    <div class="label" style="color:#64748b;">BPM</div>
+                    <div id="bpm" style="font-size:28px; font-weight:900; color:#10b981;">--</div>
+                </div>
+                <div style="text-align:center; background:#fff; border-radius:12px; padding:10px;">
+                    <div class="label" style="color:#64748b;">Güven</div>
+                    <div id="conf" style="font-size:28px; font-weight:900; color:#0ea5e9;">0%</div>
+                </div>
+            </div>
+
+            <div class="panel" style="margin-top:12px;">
+                <div class="label" style="margin-bottom:6px;">Dalgaboyu</div>
+                <canvas id="wave"></canvas>
+            </div>
+        </div>
+
+        <div class="status idle" id="status">Hazır</div>
+        <div style="margin-top:10px;">
+            <small>İpucu: Telefonu karın bölgesinde yumuşakça gezdirin, mümkünse kulaklık kullanın.</small>
+        </div>
+
+        <div class="panel" style="margin-top:12px; text-align:center;">
+            <a href="index-pro.html" style="text-decoration:none; font-weight:700; color:#0ea5e9;">🎧 Gelişmiş Dinleme (Pro) sayfasına git</a>
+        </div>
+
+        <div class="panel" style="margin-top:12px;">
+            <div class="label" style="margin-bottom:6px;">Ana Ekrana Ekle (PWA)</div>
+            <div style="font-size:13px; color:#475569; line-height:1.5;">
+                - iPhone/iPad (Safari): Paylaş > Ana Ekrana Ekle<br>
+                - Android (Chrome): Menü ⋮ > Ana ekrana ekle
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let ctx, src, outGain, analyser, stream, raf, muted = false, listening = false;
+    let hb, ring, ringIdx = 0, hbTimer = null;
+    const ringSeconds = 3; // 3 sn pencere
+    // Mic selection
+    let selectedDeviceId = null;
+    // Worklet envelope
+    let hbNode = null, envRing = null, envIdx = 0, envRate = 0;
+
+    function setStatus(t, kind) {
+        const s = document.getElementById('status');
+        s.textContent = t;
+        s.className = 'status ' + (kind || 'idle');
+    }
+
+    async function start() {
+        try {
+            document.getElementById('start').disabled = true;
+            setStatus('Mikrofon başlatılıyor…', 'idle');
+            const AC = window.AudioContext || window.webkitAudioContext;
+            ctx = new AC();
+            if (ctx.state === 'suspended') await ctx.resume();
+
+            const constraints = buildConstraints();
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            src = ctx.createMediaStreamSource(stream);
+
+            // Mic list (labels görünür olsun diye izin sonrası yükle)
+            await populateMics();
+
+            // Kalp filtresi ve zincir
+            if (!hb) hb = new HeartbeatDetectionDemo();
+            let current = hb.createHeartbeatFilter(ctx, src);
+
+            // Kullanıcı kazancı
+            outGain = ctx.createGain();
+            outGain.gain.value = parseFloat(document.getElementById('gain').value);
+            current.connect(outGain);
+
+            // Analizör
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 4096; // daha uzun örnek
+            outGain.connect(analyser);
+
+            // Çıkış (kulaklık önerilir)
+            outGain.connect(ctx.destination);
+
+            // AudioWorklet (opsiyonel)
+            const wantWorklet = document.getElementById('useWorklet').checked;
+            if (wantWorklet && ctx.audioWorklet) {
+                try {
+                    await ctx.audioWorklet.addModule('worklet-heartbeat.js');
+                    hbNode = new AudioWorkletNode(ctx, 'heartbeat-envelope-processor', {
+                        processorOptions: { sampleRate: ctx.sampleRate }
+                    });
+                    outGain.connect(hbNode);
+                    const silent = ctx.createGain();
+                    silent.gain.value = 0; // keep processor running without audible path
+                    hbNode.connect(silent).connect(ctx.destination);
+                    hbNode.port.onmessage = (e) => {
+                        const msg = e.data || {};
+                        if (msg.type === 'init') {
+                            envRate = msg.rate || (ctx.sampleRate / 128);
+                            hb.sampleRate = envRate; // analiz için örnekleme
+                            envRing = new Float32Array(Math.max(1, Math.round(envRate * ringSeconds)));
+                            envIdx = 0;
+                        } else if (msg.type === 'envelope' && envRing) {
+                            const chunk = msg.data;
+                            for (let i=0;i<chunk.length;i++) {
+                                envRing[envIdx++] = chunk[i];
+                                if (envIdx >= envRing.length) envIdx = 0;
+                            }
+                        }
+                    };
+                } catch (err) {
+                    console.warn('AudioWorklet yüklenemedi, fallback kullanılacak', err);
+                    hbNode = null;
+                }
+            }
+
+            // Ring buffer (3 sn)
+            ring = new Float32Array(Math.max(1, Math.round((ctx.sampleRate||48000)*ringSeconds)));
+            ringIdx = 0;
+
+            listening = true;
+            document.getElementById('stop').disabled = false;
+            document.getElementById('mute').disabled = false;
+            document.getElementById('live').style.display = 'inline-block';
+            setStatus('Canlı dinleme aktif', 'live');
+
+            draw();
+            startHB();
+        } catch (e) {
+            console.error(e);
+            setStatus('Hata: ' + e.message, 'idle');
+            document.getElementById('start').disabled = false;
+        }
+    }
+
+    function stopAll() {
+        listening = false;
+        if (raf) cancelAnimationFrame(raf);
+        if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
+        if (stream) { stream.getTracks().forEach(t=>t.stop()); stream = null; }
+        if (src) { try{src.disconnect();}catch{} src = null; }
+        if (hbNode) { try{hbNode.disconnect();}catch{} hbNode = null; }
+        if (outGain) { try{outGain.disconnect();}catch{} outGain = null; }
+        if (analyser) { try{analyser.disconnect();}catch{} analyser = null; }
+        if (ctx) { try{ctx.close();}catch{} ctx = null; }
+        ring = null; ringIdx = 0; envRing = null; envIdx = 0; envRate = 0;
+        document.getElementById('stop').disabled = true;
+        document.getElementById('mute').disabled = true;
+        document.getElementById('start').disabled = false;
+        document.getElementById('live').style.display = 'none';
+        setStatus('Durduruldu', 'idle');
+        // temizle çizim
+        const canvas = document.getElementById('wave');
+        const g = canvas.getContext('2d');
+        g.fillStyle = '#0f172a'; g.fillRect(0,0,canvas.width,canvas.height);
+    }
+
+    function toggleMute() {
+        if (!outGain) return;
+        muted = !muted;
+        outGain.gain.value = muted ? 0 : parseFloat(document.getElementById('gain').value);
+        document.getElementById('mute').textContent = muted ? '🔊 Sesi Aç' : '🔇 Sessiz';
+    }
+
+    function updateGain(v) {
+        const max = parseInt(document.getElementById('gain').max, 10) || 50;
+        let val = Math.min(max, Math.max(1, parseInt(v,10) || 1));
+        document.getElementById('gain').value = val;
+        document.getElementById('gainLabel').textContent = val + 'x';
+        if (outGain && !muted) outGain.gain.value = val;
+    }
+
+    function draw() {
+        if (!analyser) return;
+        const canvas = document.getElementById('wave');
+        const g = canvas.getContext('2d');
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width; canvas.height = rect.height;
+
+        const n = analyser.frequencyBinCount; // half of fftSize
+        const td = new Float32Array(n);
+        analyser.getFloatTimeDomainData(td);
+        // Fallback için ring'e yaz (worklet yoksa)
+        if (!hbNode) {
+            for (let i=0;i<td.length;i++) {
+                ring[ringIdx++] = td[i];
+                if (ringIdx >= ring.length) ringIdx = 0;
+            }
+        }
+
+        g.fillStyle = '#0f172a'; g.fillRect(0,0,canvas.width,canvas.height);
+        g.strokeStyle = '#10b981'; g.lineWidth = 2; g.beginPath();
+        for (let x=0; x<canvas.width; x++) {
+            const idx = Math.floor(x / canvas.width * td.length);
+            const y = (0.5 - td[idx] * 0.45) * canvas.height;
+            if (x===0) g.moveTo(x,y); else g.lineTo(x,y);
+        }
+        g.stroke();
+        raf = requestAnimationFrame(draw);
+    }
+
+    function startHB() {
+        if (!hb || !analyser) return;
+        hbTimer = setInterval(() => {
+            let res = { bpm: 0, confidence: 0 };
+            if (hbNode && envRing && envRing.length > 0) {
+                // Worklet zarf halkasından BPM
+                const full = new Float32Array(envRing.length);
+                const right = envRing.length - envIdx;
+                full.set(envRing.subarray(envIdx));
+                full.set(envRing.subarray(0, envIdx), right);
+                res = hb.detectRhythmicPatterns(full);
+            } else {
+                // Fallback: time-domain -> envelope -> BPM
+                const full = new Float32Array(ring.length);
+                const right = ring.length - ringIdx;
+                full.set(ring.subarray(ringIdx));
+                full.set(ring.subarray(0, ringIdx), right);
+                const env = hb.envelopeDetection(full);
+                res = hb.detectRhythmicPatterns(env);
+            }
+            document.getElementById('bpm').textContent = res.bpm || '--';
+            document.getElementById('conf').textContent = (res.confidence|0) + '%';
+            if (res.bpm >= 120 && res.bpm <= 160) {
+                document.getElementById('bpm').style.color = '#10b981';
+            } else {
+                document.getElementById('bpm').style.color = '#f59e0b';
+            }
+        }, 300);
+    }
+
+    function buildConstraints() {
+        const audio = { echoCancellation:false, noiseSuppression:false, autoGainControl:false, channelCount:1, sampleRate:48000 };
+        if (selectedDeviceId) audio.deviceId = { exact: selectedDeviceId };
+        return { audio };
+    }
+
+    async function populateMics() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const inputs = devices.filter(d => d.kind === 'audioinput');
+            const sel = document.getElementById('micSelect');
+            sel.innerHTML = '';
+            inputs.forEach((d, i) => {
+                const opt = document.createElement('option');
+                opt.value = d.deviceId;
+                opt.textContent = d.label || `Mikrofon ${i+1}`;
+                sel.appendChild(opt);
+            });
+            // seçili ayarla
+            const track = stream && stream.getAudioTracks()[0];
+            const settings = track && track.getSettings ? track.getSettings() : {};
+            const currentId = settings && settings.deviceId ? settings.deviceId : selectedDeviceId;
+            if (currentId) {
+                const found = Array.from(sel.options).some(o => o.value === currentId);
+                if (found) sel.value = currentId;
+            }
+            sel.onchange = async () => {
+                selectedDeviceId = sel.value || null;
+                if (listening) await switchMic();
+            };
+        } catch (e) {
+            console.warn('Mikrofon listesi alınamadı', e);
+        }
+    }
+
+    async function refreshMics() {
+        await populateMics();
+    }
+
+    async function switchMic() {
+        if (!ctx) return;
+        try {
+            const newStream = await navigator.mediaDevices.getUserMedia(buildConstraints());
+            const old = stream; stream = newStream;
+            if (src) { try{src.disconnect();}catch{} }
+            src = ctx.createMediaStreamSource(stream);
+            // Zinciri yeniden kur: filtre -> outGain -> analyser/dest
+            if (!hb) hb = new HeartbeatDetectionDemo();
+            let current = hb.createHeartbeatFilter(ctx, src);
+            if (outGain) { try{outGain.disconnect();}catch{} }
+            outGain = ctx.createGain();
+            outGain.gain.value = muted ? 0 : parseFloat(document.getElementById('gain').value);
+            current.connect(outGain);
+            if (analyser) { try{analyser.disconnect();}catch{} }
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 4096;
+            outGain.connect(analyser);
+            outGain.connect(ctx.destination);
+        } catch (e) {
+            console.error('Mikrofon değiştirilemedi', e);
+            setStatus('Mikrofon değiştirilemedi: ' + e.message, 'idle');
+        }
+    }
+
+    function applySafeCap() {
+        const checked = document.getElementById('safeCap').checked;
+        const slider = document.getElementById('gain');
+        slider.max = checked ? '20' : '50';
+        // clamp mevcut değeri
+        updateGain(slider.value);
+    }
+    // başlangıçta cap uygula (DOM hazır olduğunda)
+    window.addEventListener('DOMContentLoaded', () => {
+        applySafeCap();
+        // Worklet destek kontrolü
+        if (!('audioWorklet' in (window.AudioContext || window.webkitAudioContext).prototype)) {
+            const cb = document.getElementById('useWorklet');
+            if (cb) { cb.checked = false; cb.disabled = true; }
+        }
+        // İlk cihaz listesini dene (izin yoksa labels boş gelebilir)
+        populateMics();
+    });
+    </script>
+</body>
+</html>
