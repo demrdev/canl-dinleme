@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Test</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #87ceeb;
+            font-family: Arial, sans-serif;
+        }
+        #info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+        }
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Yükleniyor...</div>
+    <div id="info">
+        <div>Durum: <span id="status">Başlatılıyor...</span></div>
+        <div>Three.js: <span id="threejs">Bekleniyor...</span></div>
+        <div>Canvas: <span id="canvas-status">Bekleniyor...</span></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        console.log("Script başladı");
+        document.getElementById('status').textContent = 'Script yüklendi';
+
+        // Three.js kontrolü
+        setTimeout(() => {
+            if (typeof THREE !== 'undefined') {
+                console.log("Three.js yüklendi!");
+                document.getElementById('threejs').textContent = 'Yüklendi ✓';
+                document.getElementById('threejs').style.color = 'lime';
+
+                // Test sahne oluştur
+                try {
+                    const scene = new THREE.Scene();
+                    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                    const renderer = new THREE.WebGLRenderer();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                    document.body.appendChild(renderer.domElement);
+
+                    document.getElementById('canvas-status').textContent = 'Oluşturuldu ✓';
+                    document.getElementById('canvas-status').style.color = 'lime';
+
+                    // Basit bir küp ekle
+                    const geometry = new THREE.BoxGeometry(1, 1, 1);
+                    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                    const cube = new THREE.Mesh(geometry, material);
+                    scene.add(cube);
+
+                    camera.position.z = 5;
+
+                    // Animasyon
+                    function animate() {
+                        requestAnimationFrame(animate);
+                        cube.rotation.x += 0.01;
+                        cube.rotation.y += 0.01;
+                        renderer.render(scene, camera);
+                    }
+
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('status').textContent = 'Çalışıyor! ✓';
+                    document.getElementById('status').style.color = 'lime';
+
+                    animate();
+
+                } catch (error) {
+                    console.error("Three.js hatası:", error);
+                    document.getElementById('canvas-status').textContent = 'HATA: ' + error.message;
+                    document.getElementById('canvas-status').style.color = 'red';
+                }
+
+            } else {
+                console.error("Three.js yüklenemedi!");
+                document.getElementById('threejs').textContent = 'Yüklenemedi ✗';
+                document.getElementById('threejs').style.color = 'red';
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -1105,23 +1105,41 @@
             }
 
             async init() {
+                console.log('Minecraft init() başladı');
+
                 // Show loading
                 this.updateLoadingProgress(10, 'Three.js başlatılıyor...');
 
+                // Three.js kontrolü
+                if (typeof THREE === 'undefined') {
+                    console.error('THREE.js yüklenmedi!');
+                    alert('Three.js kütüphanesi yüklenemedi! Lütfen sayfayı yenileyin.');
+                    return;
+                }
+                console.log('THREE.js yüklendi:', THREE.REVISION);
+
                 // Setup renderer
-                this.state.renderer = new THREE.WebGLRenderer({
-                    canvas: document.getElementById('canvas'),
-                    antialias: false
-                });
-                this.state.renderer.setSize(window.innerWidth, window.innerHeight);
-                this.state.renderer.setClearColor(0x87ceeb);
-                this.state.renderer.shadowMap.enabled = true;
+                try {
+                    this.state.renderer = new THREE.WebGLRenderer({
+                        canvas: document.getElementById('canvas'),
+                        antialias: false
+                    });
+                    this.state.renderer.setSize(window.innerWidth, window.innerHeight);
+                    this.state.renderer.setClearColor(0x87ceeb);
+                    this.state.renderer.shadowMap.enabled = true;
+                    console.log('Renderer oluşturuldu');
+                } catch (error) {
+                    console.error('Renderer hatası:', error);
+                    alert('Grafik motoru başlatılamadı: ' + error.message);
+                    return;
+                }
 
                 this.updateLoadingProgress(20, 'Sahne oluşturuluyor...');
 
                 // Setup scene
                 this.state.scene = new THREE.Scene();
                 this.state.scene.fog = new THREE.Fog(0x87ceeb, 0, CHUNK_SIZE * RENDER_DISTANCE);
+                console.log('Sahne oluşturuldu');
 
                 this.updateLoadingProgress(30, 'Kamera ayarlanıyor...');
 
@@ -1162,9 +1180,13 @@
 
                 this.updateLoadingProgress(100, 'Tamamlandı!');
 
+                console.log('Init tamamlandı, menu gösteriliyor...');
+
                 setTimeout(() => {
                     document.getElementById('loading').classList.add('hidden');
                     document.getElementById('menu').classList.remove('hidden');
+                    console.log('Loading gizlendi, menu gösterildi');
+                    console.log('Canvas boyutu:', this.state.renderer.domElement.width, 'x', this.state.renderer.domElement.height);
                 }, 500);
             }
 
@@ -1913,9 +1935,23 @@
             }
 
             startNewGame() {
+                console.log('Yeni oyun başlatılıyor...');
                 document.getElementById('menu').classList.add('hidden');
-                this.lockPointer();
+
+                // Canvas ve renderer kontrolü
+                if (!this.state.renderer || !this.state.scene) {
+                    console.error('Renderer veya scene hazır değil!');
+                    alert('Oyun henüz hazır değil, lütfen bekleyin...');
+                    return;
+                }
+
+                console.log('Renderer ve scene hazır, oyun başlatılıyor...');
                 this.start();
+
+                // Mouse lock'u oyun başladıktan sonra iste
+                setTimeout(() => {
+                    this.lockPointer();
+                }, 100);
             }
 
             continueGame() {
@@ -2304,7 +2340,9 @@
             }
 
             start() {
+                console.log('Oyun başlatılıyor...');
                 this.isRunning = true;
+                console.log('isRunning = true, animate() çağrılıyor...');
                 this.animate();
             }
 
